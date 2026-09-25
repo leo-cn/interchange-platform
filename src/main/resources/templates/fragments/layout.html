@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="commonHead(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="|${title} - 接口交换平台|">接口交换平台</title>
+    <!--
+      被外壳页（shell.html）以 iframe 嵌入时，给 <html> 打上 embedded 标记，
+      app.css 据此隐藏本页自带的侧边栏与顶栏，避免出现"双菜单套娃"。
+      这段脚本放在 head 内同步执行，早于首次绘制，因此不会闪一下双菜单。
+    -->
+    <script>
+        (function () {
+            if (window.self !== window.top) {
+                // 被外壳页（shell.html）以 iframe 嵌入：只隐藏自带菜单即可
+                document.documentElement.className += ' embedded';
+                return;
+            }
+            // 顶层直接打开功能页（收藏夹、地址栏、新窗口、会话过期后的回跳）：
+            // 一律回到外壳页并打开对应标签页。否则这里点左侧菜单是整页跳转，
+            // 表现为"新页面把原来的页面顶掉"，不像多标签。
+            // 需要单独调试页面时加 ?standalone=1 跳过跳转。
+            if (location.search.indexOf('standalone=1') >= 0) return;
+            var p = location.pathname;
+            if (p === '/' || p === '/login' || p === '/logout' || p === '/error') return;
+            location.replace('/?open=' + encodeURIComponent(p + location.search));
+        })();
+    </script>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+
+<!-- ===================== 左侧菜单 =====================
+     渲染数据来自 Menus.ALL（经 @ModelAttribute("menuGroups") 注入），
+     与外壳页共用同一份定义，避免两处菜单不一致。
+     注意：被 iframe 嵌入时本区块会被 CSS 隐藏。
+     ==================================================== -->
+<aside class="sidebar" th:fragment="sidebar(active)">
+    <div class="brand">
+        <div class="logo">
+            <span class="logo-mark">PO</span>
+            <span>接口交换平台</span>
+        </div>
+        <div class="sub">Interchange Platform v1.0</div>
+    </div>
+    <nav class="nav">
+        <th:block th:each="g : ${menuGroups}">
+            <div class="nav-title" th:text="${g.key}">分组</div>
+            <a th:each="m : ${g.value}"
+               th:href="${m.url}"
+               th:classappend="${active == m.key} ? 'active'">
+                <span class="icon" th:text="${m.icon}"></span>
+                <span th:text="${m.title}">菜单</span>
+            </a>
+        </th:block>
+    </nav>
+</aside>
+
+<!-- ===================== 顶部条 =====================
+     同样在 iframe 嵌入时隐藏（外壳页有自己更完整的顶栏）。
+     ==================================================== -->
+<div class="topbar" th:fragment="topbar(title)">
+    <h1 th:text="${title}">标题</h1>
+    <div class="user">
+        <span th:if="${session.LOGIN_USER != null}"
+              th:text="|${session.LOGIN_USER.displayName}（${session.LOGIN_USER.role}）|">用户</span>
+        <a th:href="@{/logout}">退出登录</a>
+    </div>
+</div>
+
+<!-- ===================== 通用弹窗 ===================== -->
+<div class="modal-mask" id="modalMask" th:fragment="modal">
+    <div class="modal">
+        <div class="modal-head">
+            <span id="modalTitle">详情</span>
+            <button class="close" type="button" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-foot">
+            <button class="btn" type="button" onclick="closeModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

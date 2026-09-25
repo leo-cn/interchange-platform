@@ -1,0 +1,28 @@
+# ==========================================================================
+#  Oracle 12c+（含 11g 需替换为 ojdbc8 驱动）
+#  启动方式： --spring.profiles.active=oracle   或   DB_TYPE=oracle
+#  建表脚本： db/schema-oracle.sql
+#  连接串说明：//host:port/service_name （服务名，不是 SID）
+#  建议为平台单独建用户：
+#     CREATE USER interchange IDENTIFIED BY interchange;
+#     GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO interchange;
+#
+#  提示：Oracle 生产环境建议 ddl-auto=validate，先执行 db/schema-oracle.sql 建表。
+#       Oracle 无 BOOLEAN 类型，Hibernate 会自动用 NUMBER(1) 存储布尔字段。
+# ==========================================================================
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:oracle:thin:@//127.0.0.1:1521/ORCLPDB1}
+    username: ${DB_USER:interchange}
+    password: ${DB_PASSWORD:interchange}
+    driver-class-name: ${DB_DRIVER:oracle.jdbc.OracleDriver}
+    hikari:
+      pool-name: interchange-pool
+      maximum-pool-size: 15
+      minimum-idle: 3
+      connection-test-query: SELECT 1 FROM DUAL
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Shanghai

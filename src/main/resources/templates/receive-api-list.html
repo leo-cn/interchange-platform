@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: commonHead('接收接口')}"></head>
+<body>
+<div class="layout">
+    <div th:replace="~{fragments/layout :: sidebar('receive-api')}"></div>
+
+    <div class="main">
+        <div th:replace="~{fragments/layout :: topbar('接收接口清单')}"></div>
+
+        <div class="content">
+            <div class="card">
+                <div class="card-head">
+                    <span>对外开放的接收接口</span>
+                    <div class="actions">
+                        <button class="btn btn-sm btn-primary" type="button" onclick="editApi(null)">＋ 新增接口</button>
+                    </div>
+                </div>
+                <div class="card-body tight">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>接口编码</th>
+                            <th>接口名称</th>
+                            <th>鉴权</th>
+                            <th>状态</th>
+                            <th>备注</th>
+                            <th class="nowrap">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(apis)}">
+                            <td colspan="6" class="empty">还没有登记任何接口，点右上角新增一个</td>
+                        </tr>
+                        <tr th:each="a : ${apis}">
+                            <td class="mono" style="font-size:12px;" th:text="${a.apiCode}">order-receive</td>
+                            <td th:text="${a.name}">接口名称</td>
+                            <td>
+                                <span th:if="${a.authRequired != 0}" class="badge badge-success">需要令牌</span>
+                                <span th:unless="${a.authRequired != 0}" class="badge badge-partial">免鉴权</span>
+                            </td>
+                            <td>
+                                <span th:if="${a.status == 1}" class="badge badge-success">启用</span>
+                                <span th:unless="${a.status == 1}" class="badge badge-gray">停用</span>
+                            </td>
+                            <td class="text-sub" style="font-size:12px;" th:text="${a.remark}">-</td>
+                            <td class="nowrap">
+                                <button class="btn-link" type="button" th:attr="onclick=|editApi(${a.id})|">编辑</button>
+                                <button class="btn-link" type="button"
+                                        th:attr="onclick=|toggleApi(${a.id}, ${a.status != 1}, '${a.apiCode}')|"
+                                        th:text="${a.status == 1} ? '停用' : '启用'">启用</button>
+                                <button class="btn-link danger" type="button"
+                                        th:attr="onclick=|deleteApi(${a.id}, '${a.apiCode}')|">删除</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><span>为什么接口要先登记</span></div>
+                <div class="card-body text-sub" style="font-size:13px;line-height:2;">
+                    平台的接收端点只有一条：<span class="mono">POST /api/receive/{apiCode}</span>，
+                    apiCode 是 URL 上的一段。以前这一段<b>不需要任何注册</b> ——
+                    第三方调一个你根本没写过的编码也会被返回「接收成功」，
+                    因为没有专门处理逻辑时会走兜底回执。排查问题时极易误判成"接口已经通了"。<br>
+                    登记之后：<b>未登记或已停用的接口会被直接拒绝</b>（401 接口未定义），
+                    不再静默成功；同时「接口令牌」页给接入方授权时，可以直接<b>勾选</b>这些接口，
+                    不用手敲字符串，避免拼错导致对方 401 却查不出原因。<br>
+                    <span class="text-sub">变更有最长 60 秒的生效延迟（服务端有缓存）。需要立刻止损时，
+                    用「停用接入方」或「注销令牌」更快，那两项是实时的。</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><span>第三方怎么调</span></div>
+                <div class="card-body text-sub" style="font-size:13px;line-height:2;">
+                    <div class="mono" style="margin:6px 0;font-size:12.5px;">
+                        curl -X POST http://127.0.0.1:<span
+                            th:text="${@environment.getProperty('server.port')}">18080</span>/api/receive/order-receive \<br>
+                        &nbsp;&nbsp;-H "Content-Type: application/json" -H "X-Token: AT-…" -d '{"bizNo":"A001"}'
+                    </div>
+                    <span class="mono">X-Token</span> 里的令牌要先用 appKey / appSecret
+                    到 <span class="mono">/api/oauth/token</span> 换 —— 凭证在「接口令牌」页管理。<br>
+                    <b>免鉴权</b>只建议留给内网健康检查这类接口；对外业务接口一律要求令牌。
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: modal}"></div>
+<script th:src="@{/js/app.js}"></script>
+<script>
+    function formHtml(d) {
+        d = d || {};
+        return ''
+            + '<div class="form-row">'
+            + '  <div class="field"><label>接口编码<span class="req">*</span></label>'
+            + '    <input type="text" id="a_code" class="mono" value="' + escapeHtml(d.apiCode || '') + '"'
+            + (d.id ? ' readonly' : '') + ' placeholder="pay-callback">'
+            + '    <div class="text-sub" style="font-size:12px;">字母数字 - _ ；对应 URL 上的 /api/receive/编码</div></div>'
+            + '  <div class="field"><label>接口名称<span class="req">*</span></label>'
+            + '    <input type="text" id="a_name" value="' + escapeHtml(d.name || '') + '" placeholder="支付结果回执"></div>'
+            + '</div>'
+            + '<div class="form-row">'
+            + '  <div class="field"><label>是否需要令牌</label><select id="a_auth">'
+            + '    <option value="1"' + (d.authRequired !== 0 ? ' selected' : '') + '>需要令牌（默认）</option>'
+            + '    <option value="0"' + (d.authRequired === 0 ? ' selected' : '') + '>免鉴权</option>'
+            + '  </select></div>'
+            + '  <div class="field"><label>状态</label><select id="a_status">'
+            + '    <option value="1"' + (d.status !== 0 ? ' selected' : '') + '>启用</option>'
+            + '    <option value="0"' + (d.status === 0 ? ' selected' : '') + '>停用</option>'
+            + '  </select></div>'
+            + '</div>'
+            + '<div class="field full"><label>备注</label>'
+            + '  <input type="text" id="a_remark" value="' + escapeHtml(d.remark || '') + '"'
+            + '    placeholder="谁在用、报文大概长什么样"></div>'
+            + '<input type="hidden" id="a_id" value="' + (d.id || '') + '">';
+    }
+
+    async function editApi(id) {
+        let data = {};
+        if (id) {
+            const r = await getJson('/api/receive-api/detail/' + id);
+            if (r.code !== 0) return toast(r.message, 'error');
+            data = r.data;
+        }
+        openModal(id ? '编辑接口' : '新增接口', formHtml(data));
+        const foot = document.querySelector('.modal-foot');
+        const save = document.createElement('button');
+        save.className = 'btn btn-primary';
+        save.type = 'button';
+        save.textContent = '保存';
+        save.addEventListener('click', saveApi);
+        foot.innerHTML = '<button class="btn" type="button" onclick="closeModal()">取消</button> ';
+        foot.appendChild(save);
+    }
+
+    async function saveApi() {
+        const el = (x) => document.getElementById(x);
+        const payload = {
+            id: el('a_id').value || null,
+            apiCode: el('a_code').value,
+            name: el('a_name').value,
+            authRequired: Number(el('a_auth').value),
+            status: Number(el('a_status').value),
+            remark: el('a_remark').value
+        };
+        if (!payload.apiCode || !payload.apiCode.trim()) return toast('请填写接口编码', 'error');
+        if (!payload.name || !payload.name.trim()) return toast('请填写接口名称', 'error');
+        const r = await postJson('/api/receive-api/save', payload);
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) {
+            closeModal();
+            setTimeout(() => location.reload(), 700);
+        }
+    }
+
+    async function toggleApi(id, enabled, code) {
+        if (!enabled && !confirm('停用【' + code + '】后，第三方调用会立刻失败。确认停用？')) return;
+        const r = await postForm('/api/receive-api/toggle', {id: id, enabled: enabled});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) setTimeout(() => location.reload(), 700);
+    }
+
+    async function deleteApi(id, code) {
+        if (!confirm('确认删除【' + code + '】？删除后第三方调用会被拒绝，直到重新登记。')) return;
+        const r = await postForm('/api/receive-api/delete', {id: id});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) setTimeout(() => location.reload(), 700);
+    }
+</script>
+</body>
+</html>

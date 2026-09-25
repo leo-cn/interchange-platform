@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: commonHead('接收日志')}"></head>
+<body>
+<div class="layout">
+    <div th:replace="~{fragments/layout :: sidebar('receive')}"></div>
+
+    <div class="main">
+        <div th:replace="~{fragments/layout :: topbar('接收日志')}"></div>
+
+        <div class="content">
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb0" style="margin-bottom:14px;padding:12px 14px;background:#eff6ff;border-radius:6px;font-size:13px;line-height:1.9;">
+                        <b>第三方调用地址：</b>
+                        <span class="mono">POST /api/receive/{apiCode}</span>，
+                        请求头携带 <span class="mono">X-Token: &lt;访问令牌&gt;</span>（令牌在「个人中心」查看/重置）<br>
+                        <b>调用示例：</b>
+                        <span class="mono" th:text="|curl -X POST http://127.0.0.1:${@environment.getProperty('server.port')}/api/receive/order-receive -H &quot;Content-Type: application/json&quot; -H &quot;X-Token: PO-ADMIN-DEMO-TOKEN&quot; -d '{&quot;bizNo&quot;:&quot;SO20260919001&quot;}'|">curl -X POST http://127.0.0.1:18080/api/receive/order-receive -H "Content-Type: application/json" -H "X-Token: PO-ADMIN-DEMO-TOKEN" -d '{"bizNo":"SO20260919001"}'</span>
+                    </div>
+
+                    <form id="filterForm" method="get" th:action="@{/receive/list}">
+                        <div class="filter-bar">
+                            <div class="field">
+                                <label>接口编码</label>
+                                <input type="text" name="apiCode" th:value="${apiCode}" placeholder="如 order-receive">
+                            </div>
+                            <div class="field">
+                                <label>处理结果</label>
+                                <select name="status">
+                                    <option value="">全部</option>
+                                    <option value="SUCCESS" th:selected="${status == 'SUCCESS'}">成功</option>
+                                    <option value="FAIL" th:selected="${status == 'FAIL'}">失败</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>开始时间</label>
+                                <input type="datetime-local" name="startTime" th:value="${startTime}">
+                            </div>
+                            <div class="field">
+                                <label>结束时间</label>
+                                <input type="datetime-local" name="endTime" th:value="${endTime}">
+                            </div>
+                            <div class="field wide">
+                                <label>关键字（traceId / 调用方 / 报文）</label>
+                                <input type="text" name="keyword" th:value="${keyword}">
+                            </div>
+                            <div class="field" style="flex:0 0 auto;">
+                                <button class="btn btn-primary" type="submit">查询</button>
+                                <a class="btn" th:href="@{/receive/list}">重置</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <span>接收记录（共 <b th:text="${page.totalElements}">0</b> 条）</span>
+                    <span th:if="${keepLatestOnly}" class="badge badge-gray"
+                          title="日志表只保留每个接口的最后一次调用结果，历史明细请到「接口日志」按文件查看">
+                        每个接口只留最后一次
+                    </span>
+                    <div class="actions">
+                        <button class="btn btn-sm" type="button"
+                                onclick="downloadWithFilter('filterForm', '/api/receive-log/download', 'txt')">
+                            下载 TXT
+                        </button>
+                        <button class="btn btn-sm" type="button"
+                                onclick="downloadWithFilter('filterForm', '/api/receive-log/download', 'csv')">
+                            下载 CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body tight">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th class="nowrap">接收时间</th>
+                            <th>接口编码</th>
+                            <th>方式</th>
+                            <th>来源IP</th>
+                            <th>调用方</th>
+                            <th>结果</th>
+                            <th>耗时</th>
+                            <th>traceId</th>
+                            <th class="nowrap">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${page.totalElements == 0}">
+                            <td colspan="9" class="empty">暂无接收记录</td>
+                        </tr>
+                        <tr th:each="log : ${page.content}">
+                            <td class="mono nowrap"
+                                th:text="${log.receiveTime == null ? '-' : #temporals.format(log.receiveTime, 'yyyy-MM-dd HH:mm:ss')}">-</td>
+                            <td class="mono" th:text="${log.apiCode}">code</td>
+                            <td th:text="${log.httpMethod}">POST</td>
+                            <td class="mono" th:text="${log.remoteIp}">127.0.0.1</td>
+                            <td th:text="${log.caller}">-</td>
+                            <td>
+                                <span th:if="${log.status == 'SUCCESS'}" class="badge badge-success">成功</span>
+                                <span th:if="${log.status == 'FAIL'}" class="badge badge-fail">失败</span>
+                            </td>
+                            <td class="nowrap" th:text="${log.costMs + ' ms'}">0</td>
+                            <td class="mono text-sub" style="font-size:11.5px;" th:text="${log.traceId}">-</td>
+                            <td class="nowrap">
+                                <button class="btn-link" type="button"
+                                        th:attr="onclick=|showReceiveLogDetail(${log.id})|">详情</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pager">
+                    <span>共 <b th:text="${page.totalElements}">0</b> 条，第
+                        <b th:text="${page.number + 1}">1</b> /
+                        <b th:text="${page.totalPages == 0 ? 1 : page.totalPages}">1</b> 页</span>
+                    <span class="spacer"></span>
+                    <a class="btn btn-sm" th:if="${page.number > 0}"
+                       th:href="@{/receive/list(page=${page.number}, size=${page.size}, apiCode=${apiCode}, status=${status}, keyword=${keyword}, startTime=${startTime}, endTime=${endTime})}">上一页</a>
+                    <a class="btn btn-sm" th:if="${page.number + 1 < page.totalPages}"
+                       th:href="@{/receive/list(page=${page.number + 2}, size=${page.size}, apiCode=${apiCode}, status=${status}, keyword=${keyword}, startTime=${startTime}, endTime=${endTime})}">下一页</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: modal}"></div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

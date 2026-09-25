@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: commonHead('接入方令牌')}"></head>
+<body>
+<div class="layout">
+    <div th:replace="~{fragments/layout :: sidebar('token')}"></div>
+
+    <div class="main">
+        <div th:replace="~{fragments/layout :: topbar('接入方令牌（签发 · 带到期时间）')}"></div>
+
+        <div class="content">
+            <div class="card">
+                <div class="card-head">
+                    <span>接入方凭证（appKey / appSecret）</span>
+                    <div class="actions">
+                        <button class="btn btn-sm btn-primary" type="button" onclick="editToken(null)">＋ 新增接入方</button>
+                    </div>
+                </div>
+                <div class="card-body tight">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>请求方</th>
+                            <th>appKey</th>
+                            <th>appSecret</th>
+                            <th>令牌有效期</th>
+                            <th>可调用接口</th>
+                            <th>状态</th>
+                            <th>最近换票</th>
+                            <th class="nowrap">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(tokens)}">
+                            <td colspan="8" class="empty">还没有接入方，点右上角新增一个</td>
+                        </tr>
+                        <tr th:each="t : ${tokens}">
+                            <td th:text="${t.name}">请求方</td>
+                            <td class="mono" style="font-size:12px;" th:text="${t.appKey}">AK-xxx</td>
+                            <td class="mono" style="font-size:12px;" th:text="${t.appSecret}">secret</td>
+                            <td th:text="${t.ttlSeconds} + ' 秒'">7200 秒</td>
+                            <td style="font-size:12px;">
+                                <span th:if="${t.allowApiCodes == null or t.allowApiCodes.isEmpty()}"
+                                      class="badge badge-partial">不限</span>
+                                <span th:each="c : ${t.allowApiCodes == null ? {} : #strings.arraySplit(t.allowApiCodes, ',')}"
+                                      class="mono" style="margin-right:4px;"
+                                      th:text="${#strings.trim(c)}">order-receive</span>
+                            </td>
+                            <td>
+                                <span th:if="${t.status == 1}" class="badge badge-success">启用</span>
+                                <span th:unless="${t.status == 1}" class="badge badge-gray">停用</span>
+                            </td>
+                            <td class="text-sub" style="font-size:12px;"
+                                th:text="${t.lastUsedTime == null ? '从未' : #temporals.format(t.lastUsedTime, 'MM-dd HH:mm:ss')}">
+                                -
+                            </td>
+                            <td class="nowrap">
+                                <button class="btn-link" type="button" th:attr="onclick=|issueToken(${t.id})|">换票</button>
+                                <button class="btn-link" type="button" th:attr="onclick=|editToken(${t.id})|">编辑</button>
+                                <button class="btn-link" type="button"
+                                        th:attr="onclick=|toggleToken(${t.id}, ${t.status != 1})|"
+                                        th:text="${t.status == 1} ? '停用' : '启用'">启用</button>
+                                <button class="btn-link" type="button"
+                                        th:attr="onclick=|resetSecret(${t.id}, '${t.name}')|">重置密钥</button>
+                                <button class="btn-link danger" type="button"
+                                        th:attr="onclick=|deleteToken(${t.id}, '${t.name}')|">删除</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <span>已签发的令牌（内存缓存，重启后清空）</span>
+                    <div class="actions">
+                        <button class="btn btn-sm" type="button" onclick="loadActiveTokens()">刷新</button>
+                    </div>
+                </div>
+                <div class="card-body tight">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>接入方</th>
+                            <th>access_token</th>
+                            <th>签发时间</th>
+                            <th>到期时间</th>
+                            <th class="nowrap">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="activeBody">
+                        <tr>
+                            <td colspan="5" class="empty">加载中…</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><span>调用流程（请求方视角）</span></div>
+                <div class="card-body text-sub" style="font-size:13px;line-height:2;">
+                    <b>1. 换票</b>：用 appKey / appSecret 换一个有时效的 access_token（令牌只在服务端缓存里，不落库）
+                    <div class="mono" style="margin:6px 0;font-size:12.5px;">
+                        curl -X POST http://127.0.0.1:<span th:text="${@environment.getProperty('server.port')}">18080</span>/api/oauth/token \<br>
+                        &nbsp;&nbsp;-d "appKey=AK-xxxx" -d "appSecret=xxxx"
+                    </div>
+                    返回 <span class="mono">{"code":0,"data":{"access_token":"AT-…","expires_in":7200,"expire_at":"…"}}</span><br>
+                    <b>2. 带令牌调接口</b>：
+                    <div class="mono" style="margin:6px 0;font-size:12.5px;">
+                        curl -X POST http://127.0.0.1:18080/api/receive/order-receive \<br>
+                        &nbsp;&nbsp;-H "Content-Type: application/json" -H "X-Token: AT-…" -d '{"bizNo":"A001"}'
+                    </div>
+                    也支持 <span class="mono">Authorization: Bearer AT-…</span>。令牌到期后重新换一次即可；
+                    泄露时点「停用 / 重置密钥」，该接入方名下所有令牌立刻失效。<br>
+                    前置条件：被调用的 <span class="mono">apiCode</span> 要先在「接收接口」页<b>登记</b>过，
+                    否则第一步就返回 401「接口未定义」。本页只管<b>谁能调</b>，接口存不存在由那张清单决定。<br>
+                    平台还认另外两种令牌做兜底：全局令牌 <span class="mono">app.receive-token</span>（所有人共用，仅内网联调）、
+                    账号令牌 <span class="mono">sys_user_ext.api_token</span>（跟着人走）。
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: modal}"></div>
+<script th:src="@{/js/app.js}"></script>
+<script>
+    function formHtml(d) {
+        d = d || {};
+        return ''
+            + '<div class="form-row">'
+            + '  <div class="field"><label>请求方名称<span class="req">*</span></label>'
+            + '    <input type="text" id="t_name" value="' + escapeHtml(d.name || '') + '" placeholder="东阳光 OA"></div>'
+            + '  <div class="field"><label>状态</label><select id="t_status">'
+            + '    <option value="1"' + (d.status !== 0 ? ' selected' : '') + '>启用</option>'
+            + '    <option value="0"' + (d.status === 0 ? ' selected' : '') + '>停用</option>'
+            + '  </select></div>'
+            + '</div>'
+            + '<div class="form-row">'
+            + '  <div class="field"><label>appKey</label>'
+            + '    <input type="text" id="t_key" class="mono" value="' + escapeHtml(d.appKey || '') + '"'
+            + (d.id ? ' readonly' : '') + ' placeholder="留空自动生成">'
+            + '    <div class="text-sub" style="font-size:12px;">新建后不可修改</div></div>'
+            + '  <div class="field"><label>令牌有效期（秒）</label>'
+            + '    <input type="number" id="t_ttl" value="' + (d.ttlSeconds || 7200) + '">'
+            + '    <div class="text-sub" style="font-size:12px;">换票时可用 expiresIn 覆盖，上限 86400</div></div>'
+            + '</div>'
+            + '<div class="field full"><label>可调用接口</label>'
+            + '  <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">'
+            + '    <input type="checkbox" id="t_allow_all"> 不限制（该凭证换出的令牌可调用所有已登记接口）'
+            + '  </label>'
+            + '  <div id="t_allow_box" class="text-sub" style="font-size:12px;">加载中…</div>'
+            + '  <div class="text-sub" style="font-size:12px;">候选来自「接收接口」页已登记的接口，'
+            + '接口没登记请先去登记；<b>收窄勾选会让该接入方已签发的令牌立即失效</b>，对方需重新换票</div></div>'
+            + '<div class="field full"><label>备注</label>'
+            + '  <input type="text" id="t_remark" value="' + escapeHtml(d.remark || '') + '"></div>'
+            + '<input type="hidden" id="t_id" value="' + (d.id || '') + '">';
+    }
+
+    async function editToken(id) {
+        let data = {};
+        if (id) {
+            const r = await getJson('/api/token/detail/' + id);
+            if (r.code !== 0) return toast(r.message, 'error');
+            data = r.data;
+        }
+        openModal(id ? '编辑接入方' : '新增接入方', formHtml(data));
+        renderAllowBox(data.allowApiCodes, !id);
+        const foot = document.querySelector('.modal-foot');
+        const save = document.createElement('button');
+        save.className = 'btn btn-primary';
+        save.type = 'button';
+        save.textContent = '保存';
+        save.addEventListener('click', saveToken);
+        foot.innerHTML = '<button class="btn" type="button" onclick="closeModal()">取消</button> ';
+        foot.appendChild(save);
+    }
+
+    /** 当前「不限制」是否勾着 */
+    function allowAll() {
+        const el = document.getElementById('t_allow_all');
+        return !!el && el.checked;
+    }
+
+    /**
+     * 把已登记的接口渲染成勾选列表。
+     *
+     * @param selected 逗号分隔的已授权编码
+     * @param isNew    新增时为 true —— 默认不勾「不限制」，逼着你按最小权限勾选
+     */
+    async function renderAllowBox(selected, isNew) {
+        const box = document.getElementById('t_allow_box');
+        const all = document.getElementById('t_allow_all');
+        if (!box || !all) return;
+        const picked = String(selected || '').split(',').map(s => s.trim().toLowerCase())
+            .filter(s => s.length > 0);
+        const r = await getJson('/api/receive-api/list');
+        const list = (r.code === 0 && r.data && r.data.apis) ? r.data.apis : [];
+        if (!list.length) {
+            box.innerHTML = '<div>「接收接口」页还没有登记任何接口，保存后即为「不限制」。</div>';
+            all.checked = true;
+            all.disabled = false;
+            return;
+        }
+        // 存量 allowApiCodes 是手敲的字符串，留空代表不限制；新增时默认要求逐个勾选（最小权限）
+        all.checked = !isNew && picked.length === 0;
+        all.addEventListener('change', syncAllowDisabled);
+        box.innerHTML = list.map(a => {
+            const code = String(a.apiCode || '');
+            const on = picked.indexOf(code.toLowerCase()) >= 0;
+            return '<label style="display:flex;align-items:center;gap:6px;line-height:1.9;">'
+                + '<input type="checkbox" class="t_allow_item" value="' + escapeHtml(code) + '"'
+                + (on ? ' checked' : '') + '> '
+                + '<span class="mono" style="font-size:12px;">' + escapeHtml(code) + '</span>'
+                + '<span class="text-sub">— ' + escapeHtml(a.name || '') + '</span>'
+                + (a.status === 1 ? '' : ' <span class="badge badge-gray">已停用</span>')
+                + '</label>';
+        }).join('');
+        syncAllowDisabled();
+    }
+
+    /** 勾了「不限制」就把下面的勾选框置灰 */
+    function syncAllowDisabled() {
+        document.querySelectorAll('.t_allow_item').forEach(el => {
+            el.disabled = allowAll();
+        });
+        const box = document.getElementById('t_allow_box');
+        if (box) box.style.opacity = allowAll() ? '0.45' : '1';
+    }
+
+    /** 收集勾选结果：不限制 → 空串（等价于不限）；否则逗号拼接 */
+    function collectAllowCodes() {
+        if (allowAll()) return '';
+        const codes = [];
+        document.querySelectorAll('.t_allow_item').forEach(el => {
+            if (el.checked) codes.push(el.value);
+        });
+        return codes.join(',');
+    }
+
+    async function saveToken() {
+        const el = (x) => document.getElementById(x);
+        const payload = {
+            id: el('t_id').value || null,
+            name: el('t_name').value,
+            appKey: el('t_key').value,
+            allowApiCodes: collectAllowCodes(),
+            ttlSeconds: Number(el('t_ttl').value || 7200),
+            status: Number(el('t_status').value),
+            remark: el('t_remark').value
+        };
+        if (!payload.name || !payload.name.trim()) return toast('请填写请求方名称', 'error');
+        // 一个都没勾又没勾「不限制」时不能放行：存进去会是空串，等于不限制
+        const anyChecked = Array.prototype.some.call(
+            document.querySelectorAll('.t_allow_item'), cb => cb.checked);
+        if (!allowAll() && !anyChecked) {
+            return toast('请至少勾选一个可调用接口，或勾选「不限制」', 'error');
+        }
+        if (!payload.allowApiCodes && !confirm('「可调用接口」= 不限制：该凭证换出的令牌可以调用平台上所有已登记接口。确认？')) return;
+        const r = await postJson('/api/token/save', payload);
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) {
+            closeModal();
+            setTimeout(() => location.reload(), 700);
+        }
+    }
+
+    /** 换票：拿这个接入方的凭证换一个 access_token */
+    async function issueToken(id) {
+        const r = await postForm('/api/token/issue', {id: id});
+        if (r.code !== 0) return toast(r.message, 'error');
+        const d = r.data;
+        openModal('已签发令牌', '<div class="field full"><label>access_token</label>'
+            + '<input type="text" id="at_value" class="mono" readonly value="' + escapeHtml(d.access_token) + '"></div>'
+            + '<div class="text-sub" style="font-size:12.5px;">有效期 '
+            + escapeHtml(String(d.expires_in)) + ' 秒，到期时间 ' + escapeHtml(d.expire_at || '')
+            + '<br>令牌只在服务端缓存里，服务重启后需重新换票。</div>');
+        const foot = document.querySelector('.modal-foot');
+        foot.innerHTML = '<button class="btn" type="button" onclick="closeModal()">关闭</button> '
+            + '<button class="btn btn-primary" type="button" onclick="copyToken(document.getElementById(\'at_value\').value)">复制</button>';
+    }
+
+    async function toggleToken(id, enabled) {
+        const r = await postForm('/api/token/toggle', {id: id, enabled: enabled});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) setTimeout(() => location.reload(), 700);
+    }
+
+    async function resetSecret(id, name) {
+        if (!confirm('确认重置【' + name + '】的密钥？该接入方已签发的令牌会全部失效，需要通知对方用新密钥重新换票。')) return;
+        const r = await postForm('/api/token/reset-secret', {id: id});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) setTimeout(() => location.reload(), 700);
+    }
+
+    async function deleteToken(id, name) {
+        if (!confirm('确认删除【' + name + '】？')) return;
+        const r = await postForm('/api/token/delete', {id: id});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) setTimeout(() => location.reload(), 700);
+    }
+
+    async function loadActiveTokens() {
+        const r = await getJson('/api/token/active');
+        const body = document.getElementById('activeBody');
+        if (!body) return;
+        if (r.code !== 0 || !r.data || !r.data.tokens) {
+            body.innerHTML = '<tr><td colspan="5" class="empty">加载失败</td></tr>';
+            return;
+        }
+        const list = r.data.tokens;
+        if (!list.length) {
+            body.innerHTML = '<tr><td colspan="5" class="empty">当前没有有效令牌</td></tr>';
+            return;
+        }
+        body.innerHTML = list.map(t => ''
+            + '<tr>'
+            + '  <td>' + escapeHtml(t.name || '') + '</td>'
+            + '  <td class="mono" style="font-size:12px;">' + escapeHtml(t.accessToken || '') + '</td>'
+            + '  <td class="text-sub" style="font-size:12px;">' + escapeHtml((t.issueTime || '').replace('T', ' ').substring(0, 19)) + '</td>'
+            + '  <td class="text-sub" style="font-size:12px;">' + escapeHtml((t.expireTime || '').replace('T', ' ').substring(0, 19)) + '</td>'
+            + '  <td class="nowrap"><button class="btn-link" type="button" onclick="revokeToken(\'' + t.accessToken + '\')">注销</button></td>'
+            + '</tr>').join('');
+    }
+
+    async function revokeToken(token) {
+        if (!confirm('确认注销这个令牌？对方需要重新换票。')) return;
+        const r = await postForm('/api/oauth/revoke', {access_token: token});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) loadActiveTokens();
+    }
+
+    async function copyToken(value) {
+        try {
+            await navigator.clipboard.writeText(value);
+            toast('已复制', 'success');
+        } catch (e) {
+            prompt('复制下面的内容：', value);
+        }
+    }
+
+    loadActiveTokens();
+</script>
+</body>
+</html>

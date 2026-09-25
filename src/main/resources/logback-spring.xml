@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  日志配置：每天一个文件，跨天自动压缩归档。
+
+   1. CONSOLE —— 控制台（start.bat 窗口实时可见）
+   2. MAIN    —— 平台整体运行日志
+                 当天：logs/interchange-platform.log
+                 跨天：logs/interchange-platform.2026-09-19.0.log.gz
+   3. IFACE   —— 每个接口一个目录、每天一个文件
+                 当天：logs/interfaces/{接口编码}/{接口编码}.log
+                 跨天：logs/interfaces/{接口编码}/{接口编码}.2026-09-19.0.log.gz
+
+  压缩用的是 logback 内建的 gzip 归档（与 log4j 的
+  DailyRollingFileAppender + .gz 是同一套做法），不需要引入额外依赖，
+  也不必切换到 log4j —— Spring Boot 默认的 logback 已完整支持。
+
+  %i 是"同天内因超过体积而切分"的序号：平时都是 0，
+  单日日志超过 maxFileSize 才会出现 1、2……
+-->
+<configuration>
+
+    <property name="LOG_DIR" value="logs"/>
+    <property name="IFACE_DIR" value="${LOG_DIR}/interfaces"/>
+    <property name="PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"/>
+    <property name="IFACE_PATTERN" value="%msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="MAIN" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/interchange-platform.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/interchange-platform.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 按接口分流：一个接口一个目录，一天一个文件 -->
+    <appender name="IFACE" class="ch.qos.logback.classic.sift.SiftingAppender">
+        <discriminator>
+            <key>iface</key>
+            <defaultValue>_unknown</defaultValue>
+        </discriminator>
+        <sift>
+            <appender name="IFACE-${iface}" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <file>${IFACE_DIR}/${iface}/${iface}.log</file>
+                <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                    <fileNamePattern>${IFACE_DIR}/${iface}/${iface}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                    <maxFileSize>10MB</maxFileSize>
+                    <maxHistory>30</maxHistory>
+                    <totalSizeCap>1GB</totalSizeCap>
+                </rollingPolicy>
+                <encoder>
+                    <pattern>${IFACE_PATTERN}</pattern>
+                    <charset>UTF-8</charset>
+                </encoder>
+            </appender>
+        </sift>
+    </appender>
+
+    <logger name="INTERFACE_LOG" level="INFO" additivity="false">
+        <appender-ref ref="IFACE"/>
+    </logger>
+
+    <logger name="org.quartz" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="MAIN"/>
+    </root>
+
+</configuration>

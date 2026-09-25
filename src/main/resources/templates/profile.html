@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: commonHead('个人中心')}"></head>
+<body>
+<div class="layout">
+    <div th:replace="~{fragments/layout :: sidebar('profile')}"></div>
+
+    <div class="main">
+        <div th:replace="~{fragments/layout :: topbar('个人中心')}"></div>
+
+        <div class="content">
+            <div class="grid grid-2">
+                <!-- 账号信息 -->
+                <div class="card">
+                    <div class="card-head"><span>账号信息</span></div>
+                    <div class="card-body">
+                        <div class="detail-list">
+                            <div class="k">用户名</div>
+                            <div class="v mono" th:text="${session.LOGIN_USER.username}">admin</div>
+                            <div class="k">姓名</div>
+                            <div class="v" th:text="${session.LOGIN_USER.realName}">-</div>
+                            <div class="k">角色</div>
+                            <div class="v" th:text="${session.LOGIN_USER.role}">ADMIN</div>
+                            <div class="k">接口令牌</div>
+                            <div class="v">
+                                <span class="mono" id="apiTokenText" th:text="${apiToken}">-</span>
+                                <button class="btn-link" type="button"
+                                        th:attr="onclick=|copyText('${apiToken}')|">复制</button>
+                            </div>
+                        </div>
+                        <div class="hint text-sub" style="font-size:12.5px;">
+                            第三方调用 <span class="mono">/api/receive/**</span> 时，在请求头
+                            <span class="mono">X-Token</span> 中携带该令牌。
+                        </div>
+                        <div class="mt16">
+                            <button class="btn btn-sm" type="button" onclick="resetToken()">重置接口令牌</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 修改密码 -->
+                <div class="card">
+                    <div class="card-head"><span>修改密码</span></div>
+                    <div class="card-body">
+                        <div class="field" style="margin-bottom:12px;">
+                            <label>原密码</label>
+                            <input type="password" id="oldPassword" autocomplete="current-password">
+                        </div>
+                        <div class="field" style="margin-bottom:12px;">
+                            <label>新密码</label>
+                            <input type="password" id="newPassword" autocomplete="new-password">
+                            <div class="hint">长度不少于 6 位</div>
+                        </div>
+                        <div class="field" style="margin-bottom:14px;">
+                            <label>确认新密码</label>
+                            <input type="password" id="confirmPassword" autocomplete="new-password">
+                        </div>
+                        <button class="btn btn-primary btn-sm" type="button" onclick="changePassword()">提交修改</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 运行环境 / 数据库配置回显 -->
+            <div class="card">
+                <div class="card-head">
+                    <span>运行环境与数据库配置</span>
+                    <div class="actions">
+                        <button class="btn btn-sm" type="button" onclick="loadEnvInfo()">刷新</button>
+                    </div>
+                </div>
+                <div class="card-body" id="envInfo">
+                    <div class="text-sub">加载中…</div>
+                </div>
+            </div>
+
+            <!-- 对接说明 -->
+            <div class="card">
+                <div class="card-head"><span>接口对接速查</span></div>
+                <div class="card-body" style="font-size:13px;line-height:2.1;">
+                    <b>① 第三方调用本平台（接收）</b><br>
+                    <span class="mono">POST /api/receive/{apiCode}</span>　请求头
+                    <span class="mono">X-Token: &lt;令牌&gt;</span>，请求体为 JSON<br>
+                    <b>② 平台推送数据到第三方（出向）</b><br>
+                    定时任务按 Cron 触发 → 取数（SQL / HTTP 拉取 / 固定报文）→ 组装报文 →
+                    带认证调用第三方 → 结果落「执行日志」，可查询与下载<br>
+                    <b>③ 服务探活</b><br>
+                    <span class="mono">GET /api/system/health</span>（无需登录）<br>
+                    <b>④ 数据库切换</b><br>
+                    通过启动参数 <span class="mono">--spring.profiles.active=mysql|oracle|postgresql</span>
+                    或环境变量 <span class="mono">DB_TYPE</span> 切换
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+<script>
+    async function changePassword() {
+        const oldEl = document.getElementById('oldPassword');
+        const newEl = document.getElementById('newPassword');
+        const confirmEl = document.getElementById('confirmPassword');
+        const oldPass = oldEl ? oldEl.value : '';
+        const newPass = newEl ? newEl.value : '';
+        const confirmPass = confirmEl ? confirmEl.value : '';
+        if (!oldPass) {
+            toast('请输入当前密码', 'error');
+            return;
+        }
+        if (!newPass || newPass.length < 6) {
+            toast('新密码长度不能少于 6 位', 'error');
+            return;
+        }
+        if (newPass !== confirmPass) {
+            toast('两次输入的新密码不一致', 'error');
+            return;
+        }
+        const r = await postForm('/api/profile/password', {oldPassword: oldPass, newPassword: newPass});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) setTimeout(() => location.href = '/logout', 1200);
+    }
+
+    async function resetToken() {
+        if (!confirm('重置后旧令牌立即失效，确认继续？')) return;
+        const r = await postForm('/api/profile/token', {});
+        if (r.code === 0) {
+            document.getElementById('apiTokenText').textContent = r.data;
+            toast('令牌已重置', 'success');
+        } else {
+            toast(r.message, 'error');
+        }
+    }
+
+    async function loadEnvInfo() {
+        const box = document.getElementById('envInfo');
+        const r = await getJson('/api/system/info');
+        if (r.code !== 0) {
+            box.innerHTML = '<span class="badge badge-fail">' + escapeHtml(r.message) + '</span>';
+            return;
+        }
+        const d = r.data;
+        let html = '<div class="detail-list">'
+            + row('激活的 Profile', escapeHtml((d.profiles || []).join(', ') || 'h2（默认）'))
+            + row('数据库产品', escapeHtml(d.productName || '-'))
+            + row('驱动类', '<span class="mono">' + escapeHtml(d.driver || '-') + '</span>')
+            + row('连接串', '<span class="mono">' + escapeHtml(d.datasourceUrl || '-') + '</span>')
+            + row('Hibernate 方言', '<span class="mono">' + escapeHtml(d.dialect || '-') + '</span>')
+            + row('DDL 策略', escapeHtml(d.ddlAuto || '-'))
+            + '</div>';
+        if (d.availableDatasources && d.availableDatasources.length) {
+            html += '<div class="section-title">可用于 SQL 取数的数据源</div><div class="tag-list">'
+                + d.availableDatasources.map(x => '<span class="badge badge-info">' + escapeHtml(x.name) + '</span>').join('')
+                + '</div>';
+        }
+        box.innerHTML = html;
+    }
+
+    loadEnvInfo();
+</script>
+</body>
+</html>

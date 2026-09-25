@@ -1,0 +1,173 @@
+# ==========================================================================
+#  接口交换平台 主配置
+#
+# 【数据库可配置】支持 MySQL（默认）/ Oracle / PostgreSQL / H2（内嵌，零安装）四种。
+#  切换方式二选一：
+#    ① 指定 Profile（推荐）：
+#         java -jar interchange-platform.jar --spring.profiles.active=oracle
+#       或设置环境变量 DB_TYPE=mysql / oracle / postgresql / h2
+#    ② 不切 Profile，直接覆盖连接参数（会覆盖所选 Profile 中的同名项）：
+#         DB_URL / DB_USER / DB_PASSWORD / DB_DRIVER
+#       注意：用命令行覆盖时不要写成 --spring.datasource.url=（等号后留空），
+#             空串会清空配置；Hibernate 方言无需配置，平台按实际连接自动识别。
+#  各数据库的详细参数见 application-{mysql,oracle,postgresql,h2}.yml
+#  库名（schema）：MySQL/PostgreSQL 使用 interchange 库；Oracle 使用 interchange 用户
+# ==========================================================================
+server:
+  # 默认 18080。为什么不用 8080？
+  #   本机 Windows 的动态端口范围是 1024-15000（netsh int ipv4 show dynamicport tcp
+  #   显示 启动端口 1024 / 端口数 13977），8080 正好落在该区间内，会被系统随机
+  #   分配给任何进程当作客户端源端口（例如 Windows Defender 就长期占着 8080 对外
+  #   发起连接）。此时 Tomcat 绑定 8080 会直接失败：
+  #     Web server failed to start. Port 8080 was already in use.
+  #   18080 在动态范围之外，不会被随机抢占。
+  # 如需改端口，用启动参数 --server.port=xxxx 覆盖；若服务器动态端口范围已是
+  # 默认的 49152-65535，可放心改回 8080。
+  # （注意：Spring Boot 会读取环境变量 SERVER_PORT，若系统里存在该变量会覆盖此处配置）
+  port: 18080
+  servlet:
+    session:
+      timeout: 4h
+  tomcat:
+    uri-encoding: UTF-8
+
+spring:
+  application:
+    name: interchange-platform
+
+  # 数据库类型：mysql（默认）/ oracle / postgresql / h2（内嵌）
+  profiles:
+    active: ${DB_TYPE:mysql}
+
+  # ------------------------------------------------------------------------
+  # 默认数据源（MySQL）。这里刻意再写一份默认值：
+  # 即使 Profile 没生效（例如命令行误传了空的 --spring.profiles.active= 或
+  # --spring.datasource.url=），也不会静默退化成内存库。
+  # ------------------------------------------------------------------------
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/t6?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123}
+    driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
+    hikari:
+      pool-name: interchange-pool
+      maximum-pool-size: 15
+      minimum-idle: 3
+
+  jpa:
+    hibernate:
+      # 建议生产环境改为 validate，并使用 db/ 目录下的建表脚本初始化
+      ddl-auto: ${JPA_DDL:update}
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        # 注意：这里不要写死 hibernate.dialect！
+        # 写死后一旦实际连接的库与之不符（例如方言=MySQL 却连到了 H2），
+        # Hibernate 会生成 MySQL 专有 DDL（engine=InnoDB / longtext / bit），
+        # 建表全部失败，随后就会报 Table "XXX" not found。交给 Hibernate 自动识别。
+        # 特殊场景（如 Oracle 11g）可用 -Dhibernate.dialect=... 单独覆盖。
+
+  thymeleaf:
+    cache: false
+    encoding: UTF-8
+
+  quartz:
+    job-store-type: memory          # 调度状态保存在内存；任务定义以数据库为准，启动时自动重建
+    auto-startup: true
+    properties:
+      org.quartz.scheduler.instanceName: InterchangeScheduler
+      org.quartz.scheduler.instanceId: AUTO
+      org.quartz.threadPool.threadCount: 10
+      org.quartz.jobStore.misfireThreshold: 60000
+
+# ==========================================================================
+#  平台业务配置
+# ==========================================================================
+app:
+  # 接口接收（第三方调用本平台）的全局令牌；留空则仅校验用户表上的 api_token
+  receive-token: ${RECEIVE_TOKEN:PO-2026-DEMO-TOKEN}
+
+  # 是否允许使用 H2 内存库启动。默认 false：
+  # 一旦检测到连接的是 jdbc:h2:mem:* （通常是启动参数被传成空串导致配置丢失），
+  # 平台会直接启动失败并提示，避免“看起来正常、重启数据全丢”的坑。
+  allow-memory-db: ${ALLOW_MEMORY_DB:false}
+
+  # 定时推送任务的默认参数（新建任务时的初始值，任务上可单独覆盖）
+  # 注：失败**不重试**——调用第三方只发一次，失败即记为 FAIL，等下一次调度再推。
+  #     重试机制已移除（原 retry-times / retry-interval-sec 两项不再存在）。
+  push:
+    timeout-ms: 15000
+    max-rows: 10000               # SQL 取数最大返回行数
+    log-body-limit: 100000        # 单条日志报文落库上限（字符）
+
+  # 接口日志（logs/interfaces/{接口编码}/{接口编码}.log）的输出样式
+  # 两种开关都可以用启动参数临时覆盖，无需改文件：
+  #   java -jar interchange-platform.jar --app.iface-log.pretty=true --app.iface-log.sql-pretty=true
+  iface-log:
+    # false（默认）= 一行一条 JSON（JSON Lines），便于 ELK / Loki / 脚本按行采集
+    # true        = 多行缩进美化，便于肉眼查看（一条记录占多行，不能按行采集）
+    pretty: ${IFACE_LOG_PRETTY:false}
+    # 日志里的取数 SQL 是否格式化（关键字大写 + 子句换行）；false 则原样输出
+    sql-pretty: ${IFACE_LOG_SQL_PRETTY:true}
+    # 过程日志里是否带报文正文（报文大、或含敏感字段时可关掉，只留状态与耗时）
+    verbose-payload: ${IFACE_LOG_VERBOSE_PAYLOAD:true}
+    # 注：**执行过程（阶段明细）固定打印，不提供开关**，所以这里没有 verbose 键：
+    #     开始运行 → 查询到 N 条 → 开始推送第 i 条 → 第 i 条结束 → 任务结束，
+    #     边执行边落盘，手动执行时立刻能看到进度。它是排查故障的唯一依据，
+    #     留开关只会导致"出事时发现没开"。
+    #     收尾的成败写在 END 汇总文案里（接一行 JSON 汇总记录），不再重复输出。
+    # 过程日志（阶段明细）的样式：
+    #   text（默认）= 一行纯文本
+    #     2026-09-21 22:05:00.123 | PUSH | OaUserTask | START | traceId=xxx | 开始运行定时任务：OaUserTask（用户数据推送）
+    #   json        = 一行 JSON（与执行结束后的汇总记录同构，便于脚本解析）
+    stage-format: ${IFACE_LOG_STAGE_FORMAT:text}
+
+  # 登录账号的来源。平台不建自己的用户表，与业务系统共用一份账号：
+  #   账号主数据（登录名 / 姓名 / 口令 / 启停）  -> 业务库 t6.sys_user
+  #   平台专有属性（角色 / 接口令牌 / 平台口令） -> 平台库 sys_user_ext（按 ext_id = t6.sys_user.ID 关联）
+  # 业务库的用户表一行都不用改，业务系统也完全不受影响。
+  user:
+    datasource: t6                 # 账号主数据所在数据源（app.extra-datasources 里的 key）
+    table: sys_user                # 业务系统用户表名
+    auto-provision: true           # 业务账号首次登录平台时自动建档，角色取 default-role
+    default-role: OPERATOR         # 自动建档时的角色（ADMIN / OPERATOR / VIEWER）
+    allow-biz-password: true       # 允许直接用业务系统口令登录；关掉后只有在本平台改过密码的账号能登
+
+  # 日志表（task_log / receive_log）的保留策略。
+  # 这两张表存的是完整报文，高频任务（例如 30 秒一次）一天能落几千条，库会很快膨胀。
+  #   true（默认）= 每个任务 / 每个接口只保留最后一次执行结果，新的覆盖旧的，
+  #                行数恒等于任务数 / 接口数，永不膨胀；成功失败都覆盖。
+  #                需要历史明细时看接口日志文件 logs/interfaces/{接口}/{接口}.log。
+  #   false        = 每次执行都新增一条，保留全部历史（库会随时间增长）。
+  # 启动时会自动把历史数据收敛成"只留最新一条"，切回 false 不影响已有数据。
+  log:
+    keep-latest-only: ${LOG_KEEP_LATEST_ONLY:true}
+
+  # SQL 取数可用的数据源清单。main = 平台自身库，始终存在。
+  # 需要从业务系统库取数时在下面追加，任务的“数据源”下拉框会自动带出。
+  extra-datasources:
+    - key: t6
+      name: t6 业务库(MySQL)
+      url: jdbc:mysql://127.0.0.1:3306/t6?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      username: root
+      password: '123'
+      driver: com.mysql.cj.jdbc.Driver
+  # 追加更多数据源就往下面接着写：
+  #   - key: biz
+  #     name: 项目系统库(MySQL)
+  #     url: jdbc:mysql://127.0.0.1:3306/project_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+  #     username: readonly
+  #     password: readonly123
+  #     driver: com.mysql.cj.jdbc.Driver
+
+logging:
+  level:
+    root: info
+    com.interchange.platform: info
+    org.quartz: info
+    org.hibernate.SQL: info
+  file:
+    name: ./logs/interchange-platform.log

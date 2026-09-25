@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>接口交换平台</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="shell-body">
+
+<div class="shell" id="shell">
+
+    <!-- ==================== 左侧菜单 ==================== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <div class="logo">
+                <span class="logo-mark">PO</span>
+                <span class="brand-text">接口交换平台</span>
+            </div>
+            <div class="sub brand-text">Interchange Platform v1.0</div>
+        </div>
+        <nav class="nav">
+            <th:block th:each="g : ${menuGroups}">
+                <div class="nav-title brand-text" th:text="${g.key}">分组</div>
+                <a th:each="m : ${g.value}"
+                   class="menu-item"
+                   href="javascript:void(0)"
+                   data-role="menu"
+                   th:attr="data-key=${m.key},data-url=${m.url},data-title=${m.title}"
+                   th:classappend="${m.key == 'index'} ? 'active'">
+                    <span class="icon" th:text="${m.icon}">◎</span>
+                    <span class="txt" th:text="${m.title}">菜单</span>
+                </a>
+            </th:block>
+        </nav>
+        <div class="sidebar-foot brand-text" title="多标签外壳版本标识">v1.0.0 · 多标签版</div>
+    </aside>
+
+    <!-- ==================== 主区域 ==================== -->
+    <div class="main">
+
+        <!-- 顶栏 -->
+        <header class="topbar">
+            <div class="tb-left">
+                <button class="icon-btn" id="btnCollapse" type="button" title="收起 / 展开菜单">☰</button>
+                <div class="page-title" id="pageTitle">接口交换平台</div>
+            </div>
+            <div class="user">
+                <span class="who" th:if="${session.LOGIN_USER != null}"
+                      th:text="|${session.LOGIN_USER.displayName}（${session.LOGIN_USER.role}）|">用户</span>
+                <button class="icon-btn" id="btnReload" type="button" title="刷新当前标签页">⟳</button>
+                <button class="icon-btn" id="btnProfile" type="button" data-url="/profile" title="个人中心">☺</button>
+                <a class="icon-btn danger" th:href="@{/logout}" title="退出登录">⏻</a>
+            </div>
+        </header>
+
+        <!-- 标签栏 -->
+        <div class="tabbar">
+            <div class="tabs" id="tabs"></div>
+            <div class="tab-tools">
+                <button class="icon-btn" id="btnCloseOthers" type="button" title="关闭其他标签页">⊘</button>
+            </div>
+        </div>
+
+        <!-- 内容区：每个标签页对应一个常驻 iframe，切换只改可见性，状态不丢 -->
+        <div class="frames" id="frames">
+            <div class="welcome" id="welcome">
+                <div class="welcome-mark">PO</div>
+                <h2>接口交换平台</h2>
+                <p>从左侧菜单打开功能页，可同时打开多个标签页。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/shell.js}"></script>
+</body>
+</html>

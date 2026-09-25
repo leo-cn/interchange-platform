@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>登录 - 接口交换平台</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="login-page">
+    <div class="login-card">
+        <div class="logo-lg">PO</div>
+        <h2>接口交换平台</h2>
+        <div class="tip">数据交换 · 定时推送 · 接口接收 · 日志追溯</div>
+
+        <form id="loginForm" action="/doLogin" method="post">
+            <input type="hidden" id="redirect" th:value="${redirect}">
+            <div class="field" style="margin-bottom:14px;">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" autocomplete="username"
+                       placeholder="请输入用户名" required autofocus>
+            </div>
+            <div class="field">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" autocomplete="current-password"
+                       placeholder="请输入密码" required>
+            </div>
+            <button class="btn btn-primary" type="submit" id="loginBtn">登 录</button>
+            <div class="login-error" id="loginError"></div>
+        </form>
+
+        <div class="demo-account">
+            默认账号：<b>admin</b> / <b>Admin@123</b><br>
+            首次登录后请到「个人中心」修改密码
+        </div>
+
+        <div class="login-foot">Interchange Platform v1.0 · 支持 MySQL / Oracle / PostgreSQL / H2</div>
+    </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+<script>
+    async function doLogin(e) {
+        e.preventDefault();
+        const btn = document.getElementById('loginBtn');
+        const errBox = document.getElementById('loginError');
+        errBox.textContent = '';
+
+        // 关键：先取到值再判断。若页面未加载完就提交，字段会读不到，
+        // 直接发请求就会变成"缺少 username 参数"这种底层报错甩到用户脸上。
+        const usernameEl = document.getElementById('username');
+        const passwordEl = document.getElementById('password');
+        const username = usernameEl ? usernameEl.value.trim() : '';
+        const password = passwordEl ? passwordEl.value : '';
+
+        if (!username) {
+            errBox.textContent = '请输入用户名';
+            if (usernameEl) usernameEl.focus();
+            return false;
+        }
+        if (!password) {
+            errBox.textContent = '请输入密码';
+            if (passwordEl) passwordEl.focus();
+            return false;
+        }
+
+        btn.disabled = true;
+        btn.textContent = '登录中…';
+        try {
+            // body 必须是 URLSearchParams 对象本身（不能 .toString()），
+            // 且显式声明 Content-Type：否则浏览器会按 text/plain 发送，
+            // 服务端 @RequestParam 取不到 username/password，直接报"请输入用户名"。
+            const body = new URLSearchParams();
+            body.append('username', username);
+            body.append('password', password);
+            const resp = await fetch('/doLogin', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                },
+                body: body
+            });
+            const r = await resp.json();
+            if (r.code === 0) {
+                const redirect = document.getElementById('redirect').value;
+                location.href = redirect && redirect !== 'null' ? redirect : '/';
+            } else {
+                errBox.textContent = r.message || '登录失败，请重试';
+            }
+        } catch (err) {
+            errBox.textContent = '登录请求失败，请检查服务是否正常';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '登 录';
+        }
+        return false;
+    }
+
+    // 回车直接提交也走同一个入口
+    document.getElementById('loginForm').addEventListener('submit', doLogin);
+    document.getElementById('username').focus();
+</script>
+</body>
+</html>

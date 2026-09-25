@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: commonHead('任务配置')}"></head>
+<body>
+<div class="layout">
+    <div th:replace="~{fragments/layout :: sidebar('task-edit')}"></div>
+
+    <div class="main">
+        <div th:replace="~{fragments/layout :: topbar(${task.id == null ? '新建任务配置' : '编辑任务配置'})}"></div>
+
+        <div class="content">
+            <form id="taskForm">
+                <input type="hidden" id="id" th:value="${task.id}">
+
+                <!-- 基本信息 -->
+                <div class="card">
+                    <div class="card-head"><span>① 基本信息</span></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="field">
+                                <label>任务编码<span class="req">*</span></label>
+                                <input type="text" id="taskCode" th:value="${task.taskCode}"
+                                       placeholder="如 ORDER-PUSH-001" th:readonly="${task.id != null}">
+                                <div class="hint">唯一标识，字母/数字/下划线/中划线；保存后不可修改</div>
+                            </div>
+                            <div class="field">
+                                <label>任务名称<span class="req">*</span></label>
+                                <input type="text" id="taskName" th:value="${task.taskName}"
+                                       placeholder="如 订单数据推送">
+                            </div>
+                            <div class="field">
+                                <label>目标第三方系统<span class="req">*</span></label>
+                                <select id="partnerId">
+                                    <option value="">请选择</option>
+                                    <option th:each="p : ${partners}" th:value="${p.id}"
+                                            th:text="|${p.partnerName}（${p.baseUrl}）|"
+                                            th:selected="${task.partnerId != null and task.partnerId == p.id}"></option>
+                                </select>
+                                <div class="hint">地址与认证在「第三方系统」页维护，<a th:href="@{/partner/list}">去配置</a></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="field">
+                                <label>启用状态</label>
+                                <select id="enabled">
+                                    <option value="true" th:selected="${task.enabled == null or task.enabled}">启用（按 Cron 自动执行）</option>
+                                    <option value="false" th:selected="${task.enabled != null and !task.enabled}">停用（仅手工执行）</option>
+                                </select>
+                            </div>
+                            <div class="field full">
+                                <label>备注</label>
+                                <input type="text" id="remark" th:value="${task.remark}" placeholder="用途说明，便于交接">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据来源 -->
+                <div class="card">
+                    <div class="card-head"><span>② 数据来源（推送什么数据）</span></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="field">
+                                <label>来源类型<span class="req">*</span></label>
+                                <select id="sourceType" onchange="switchSource()">
+                                    <option value="SQL" th:selected="${task.sourceType == 'SQL'}">SQL 查询本系统库</option>
+                                    <option value="HTTP_PULL" th:selected="${task.sourceType == 'HTTP_PULL'}">调用本系统 HTTP 接口</option>
+                                    <option value="FIXED" th:selected="${task.sourceType == 'FIXED'}">固定报文（心跳/联调）</option>
+                                </select>
+                            </div>
+                            <div class="field" id="datasourceField">
+                                <label>数据源</label>
+                                <select id="datasourceKey">
+                                    <option th:each="ds : ${datasourceOptions}" th:value="${ds.key}"
+                                            th:text="${ds.name}"
+                                            th:selected="${ds.key == task.datasourceKey}"></option>
+                                </select>
+                                <div class="hint">业务库可在 application.yml 的 app.extra-datasources 中追加</div>
+                            </div>
+                        </div>
+
+                        <!-- SQL -->
+                        <div id="sqlBlock">
+                            <div class="field full">
+                                <label>取数 SQL<span class="req">*</span></label>
+                                <textarea id="sqlText" class="payload" th:text="${task.sqlText}"
+                                          placeholder="select order_no as orderNo, amount, create_time from biz_order where status = 1"></textarea>
+                                <div class="hint">
+                                    只允许 SELECT / WITH 查询，禁止写操作；列别名即推送报文中的字段名。
+                                    <a href="javascript:void(0)" onclick="previewData()">立即预览结果</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- HTTP_PULL -->
+                        <div id="pullBlock" style="display:none;">
+                            <div class="form-row">
+                                <div class="field" style="flex:3;">
+                                    <label>拉取地址<span class="req">*</span></label>
+                                    <input type="text" id="pullUrl" th:value="${task.pullUrl}"
+                                           th:placeholder="|http://127.0.0.1:${@environment.getProperty('server.port')}/internal/order/list|"
+                                           placeholder="http://127.0.0.1:18080/internal/order/list">
+                                </div>
+                                <div class="field" style="flex:1;">
+                                    <label>请求方式</label>
+                                    <select id="pullMethod">
+                                        <option value="GET" th:selected="${task.pullMethod == 'GET'}">GET</option>
+                                        <option value="POST" th:selected="${task.pullMethod == 'POST'}">POST</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field full">
+                                <label>拉取请求头（JSON 对象）</label>
+                                <textarea id="pullHeaders" th:text="${task.pullHeaders}"
+                                          placeholder='{"X-Token":"internal-token"}'></textarea>
+                            </div>
+                        </div>
+
+                        <!-- FIXED -->
+                        <div id="fixedBlock" style="display:none;">
+                            <div class="field full">
+                                <label>固定报文体<span class="req">*</span></label>
+                                <textarea id="fixedPayload" class="payload" th:text="${task.fixedPayload}"
+                                          placeholder='{"type":"heartbeat","source":"interchange-platform"}'></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 推送配置 -->
+                <div class="card">
+                    <div class="card-head"><span>③ 推送配置</span></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="field" style="flex:2;">
+                                <label>目标路径<span class="req">*</span></label>
+                                <input type="text" id="targetPath" th:value="${task.targetPath}"
+                                       placeholder="/api/v1/orders/receive">
+                                <div class="hint">相对第三方 baseUrl；也可直接填完整 URL</div>
+                            </div>
+                            <div class="field">
+                                <label>请求方式</label>
+                                <select id="httpMethod">
+                                    <option value="POST" th:selected="${task.httpMethod == 'POST'}">POST</option>
+                                    <option value="PUT" th:selected="${task.httpMethod == 'PUT'}">PUT</option>
+                                    <option value="GET" th:selected="${task.httpMethod == 'GET'}">GET</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>推送模式</label>
+                                <select id="pushMode">
+                                    <option value="BATCH" th:selected="${task.pushMode == 'BATCH'}">整批（一次推送全部数据）</option>
+                                    <option value="PER_ROW" th:selected="${task.pushMode == 'PER_ROW'}">逐条（每条数据一次请求）</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="field">
+                                <label>Content-Type</label>
+                                <input type="text" id="contentType" th:value="${task.contentType}">
+                            </div>
+                            <div class="field">
+                                <label>超时（毫秒）</label>
+                                <input type="number" id="timeoutMs" th:value="${task.timeoutMs}" min="1000">
+                                <div class="hint">调用失败不重试，等下一次调度再推</div>
+                            </div>
+                        </div>
+                        <div class="field full">
+                            <label>附加请求头（JSON 对象，会与第三方系统请求头合并，同名以本任务为准）</label>
+                            <textarea id="headersJson" th:text="${task.headersJson}"
+                                      placeholder='{"X-Biz-Source":"project-system"}'></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="field">
+                                <label>自定义处理器（可选）</label>
+                                <input type="text" id="handlerBean" th:value="${task.handlerBean}"
+                                       list="handlerOptions" placeholder="留空 = 默认推送逻辑">
+                                <datalist id="handlerOptions">
+                                    <option th:each="h : ${handlerOptions}" th:value="${h.code}"
+                                            th:text="|${h.code} — ${h.desc}|"></option>
+                                </datalist>
+                                <div class="hint">
+                                    报文结构、字段转换、签名、按业务码判成败、推送后回写业务表
+                                    这类特殊需求在这里挂一个处理器；留空则走默认逻辑，已配置的任务不受影响。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 调度 -->
+                <div class="card">
+                    <div class="card-head"><span>④ 调度配置</span></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="field">
+                                <label>Cron 表达式<span class="req">*</span></label>
+                                <input type="text" id="cronExpression" th:value="${task.cronExpression}"
+                                       placeholder="0 0/5 * * * ?">
+                                <div class="hint">
+                                    秒 分 时 日 月 周 · 例：<code>0 0/5 * * * ?</code> 每5分钟 ·
+                                    <code>0 0 2 * * ?</code> 每天2点 ·
+                                    <code>0 30 8 ? * MON-FRI</code> 工作日8:30
+                                </div>
+                            </div>
+                            <div class="field" style="flex:0 0 auto; min-width:auto;">
+                                <label>&nbsp;</label>
+                                <button class="btn" type="button" onclick="previewCron()">校验并预览下次执行</button>
+                            </div>
+                        </div>
+                        <div id="cronPreview" class="mt8"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body" style="display:flex;gap:10px;align-items:center;">
+                        <button class="btn btn-primary" type="button" onclick="saveTask()">保存配置</button>
+                        <button class="btn" type="button" onclick="previewData()">数据预览</button>
+                        <a class="btn" th:href="@{/task/list}">返回列表</a>
+                        <span class="text-sub" id="saveTip"></span>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: modal}"></div>
+<script th:src="@{/js/app.js}"></script>
+<script>
+    function switchSource() {
+        const type = document.getElementById('sourceType').value;
+        document.getElementById('sqlBlock').style.display = type === 'SQL' ? '' : 'none';
+        document.getElementById('pullBlock').style.display = type === 'HTTP_PULL' ? '' : 'none';
+        document.getElementById('fixedBlock').style.display = type === 'FIXED' ? '' : 'none';
+        document.getElementById('datasourceField').style.display = type === 'SQL' ? '' : 'none';
+    }
+
+    function collect() {
+        const partnerId = document.getElementById('partnerId').value;
+        return {
+            id: document.getElementById('id').value || null,
+            taskCode: document.getElementById('taskCode').value,
+            taskName: document.getElementById('taskName').value,
+            partnerId: partnerId ? Number(partnerId) : null,
+            sourceType: document.getElementById('sourceType').value,
+            datasourceKey: document.getElementById('datasourceKey').value,
+            sqlText: document.getElementById('sqlText').value,
+            pullUrl: document.getElementById('pullUrl').value,
+            pullMethod: document.getElementById('pullMethod').value,
+            pullHeaders: document.getElementById('pullHeaders').value,
+            fixedPayload: document.getElementById('fixedPayload').value,
+            targetPath: document.getElementById('targetPath').value,
+            httpMethod: document.getElementById('httpMethod').value,
+            contentType: document.getElementById('contentType').value,
+            pushMode: document.getElementById('pushMode').value,
+            headersJson: document.getElementById('headersJson').value,
+            handlerBean: document.getElementById('handlerBean').value,
+            cronExpression: document.getElementById('cronExpression').value,
+            timeoutMs: Number(document.getElementById('timeoutMs').value || 15000),
+            enabled: document.getElementById('enabled').value === 'true',
+            remark: document.getElementById('remark').value
+        };
+    }
+
+    async function saveTask() {
+        const data = collect();
+        if (!data.taskName || !data.taskCode) {
+            toast('任务编码与任务名称必填', 'error');
+            return;
+        }
+        if (!data.partnerId) {
+            toast('请选择目标第三方系统', 'error');
+            return;
+        }
+        const r = await postJson('/api/task/save', data);
+        if (r.code === 0) {
+            toast('保存成功', 'success');
+            document.getElementById('saveTip').textContent = '已保存，2 秒后返回列表…';
+            setTimeout(() => location.href = '/task/list', 900);
+        } else {
+            toast(r.message, 'error');
+        }
+    }
+
+    async function previewCron() {
+        const cron = document.getElementById('cronExpression').value;
+        const r = await postForm('/api/task/cron-preview', {cron: cron});
+        const box = document.getElementById('cronPreview');
+        if (r.code !== 0) {
+            box.innerHTML = '<span class="badge badge-fail">' + escapeHtml(r.message) + '</span>';
+            return;
+        }
+        if (!r.data.valid) {
+            box.innerHTML = '<span class="badge badge-fail">Cron 表达式非法</span>';
+            return;
+        }
+        box.innerHTML = '<div class="text-sub" style="font-size:12.5px;margin-bottom:6px;">'
+            + '语义：' + escapeHtml(r.data.summary) + '，接下来 5 次执行时间：</div>'
+            + '<div class="tag-list">' + r.data.nextFireTimes.map(t =>
+                '<span class="badge badge-info mono">' + escapeHtml(t) + '</span>').join('') + '</div>';
+    }
+
+    async function previewData() {
+        const data = collect();
+        openModal('数据预览（最多 20 条）', '<div class="text-sub">正在取数…</div>');
+        const r = await postJson('/api/task/preview?limit=20', data);
+        if (r.code !== 0) {
+            document.getElementById('modalBody').innerHTML =
+                '<span class="badge badge-fail">' + escapeHtml(r.message) + '</span>';
+            return;
+        }
+        const d = r.data;
+        let html = '<div class="detail-list"><div class="k">数据条数</div><div class="v">'
+            + d.total + (d.truncated ? '（仅展示前 20 条）' : '') + '</div>'
+            + '<div class="k">取数耗时</div><div class="v">' + d.costMs + ' ms</div></div>';
+        if (d.data && d.data.length) {
+            html += '<div class="section-title">数据内容</div>';
+            html += '<pre class="code">' + escapeHtml(JSON.stringify(d.data, null, 2)) + '</pre>';
+        } else if (d.rawText) {
+            html += '<div class="section-title">报文内容</div>';
+            html += '<pre class="code">' + escapeHtml(d.rawText) + '</pre>';
+        } else {
+            html += '<div class="text-sub">本次查询没有返回数据，请检查 SQL 条件。</div>';
+        }
+        document.getElementById('modalBody').innerHTML = html;
+    }
+
+    switchSource();
+</script>
+</body>
+</html>

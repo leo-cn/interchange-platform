@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: commonHead('接口日志')}"></head>
+<body>
+<div class="layout">
+    <div th:replace="~{fragments/layout :: sidebar('iface-log')}"></div>
+
+    <div class="main">
+        <div th:replace="~{fragments/layout :: topbar('接口日志')}"></div>
+
+        <div class="content">
+            <div class="card">
+                <div class="card-body">
+                    <div style="padding:12px 14px;background:#eff6ff;border-radius:8px;font-size:13px;line-height:1.9;">
+                        <b>每个接口一个目录、每天一个日志文件</b>，
+                        <b>每条记录一行 JSON</b>（JSON Lines，便于 ELK / 脚本按行解析），
+                        含完整报文与结果；数据库里的执行日志查询不受影响。<br>
+                        <b>存放目录：</b><span class="mono" th:text="${logDir}">logs/interfaces</span><br>
+                        <b>命名规则：</b>推送日志用「任务编码」，接收日志用「接口编码」。<br>
+                        <b>滚动与压缩：</b>当天写 <span class="mono">order-receive/order-receive.log</span>，
+                        跨天自动压缩归档为 <span class="mono">order-receive/order-receive.2026-09-19.0.log.gz</span>，
+                        保留 <b>30 天</b>；单日超过 10MB 会再加序号切分（<span class="mono">.0 / .1</span>）。
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><span>按 traceId 定位一次执行</span></div>
+                <div class="card-body">
+                    <form id="traceForm" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                        <div class="field" style="min-width:300px;">
+                            <label>traceId（必填，执行日志详情里那一串）</label>
+                            <input type="text" id="traceId" placeholder="留空不填时点定位会提示">
+                        </div>
+                        <div class="field" style="min-width:180px;">
+                            <label>接口编码（可留空，留空会跨所有接口查找）</label>
+                            <input type="text" id="traceIface" placeholder="如 OaUserTask">
+                        </div>
+                        <div class="field" style="min-width:160px;">
+                            <label>日期（可选，缩小查找范围）</label>
+                            <input type="date" id="traceDate">
+                        </div>
+                        <button class="btn" type="submit">定位</button>
+                    </form>
+                    <div id="tracePanel" style="margin-top:10px;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <span>接口日志文件（共 <b id="fileCount" th:text="${#lists.size(files)}">0</b> 个）</span>
+                    <div class="actions">
+                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6b7280;cursor:pointer;">
+                            <input type="checkbox" id="autoRefresh" checked> 自动刷新（5 秒）
+                        </label>
+                        <button class="btn btn-sm" type="button" id="btnRefresh">刷新</button>
+                    </div>
+                </div>
+                <div class="card-body tight">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th style="width:180px;">接口编码</th>
+                            <th style="width:300px;">文件</th>
+                            <th style="width:90px;">类型</th>
+                            <th style="width:100px;">大小</th>
+                            <th style="width:170px;">最后更新</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="fileBody">
+                        <tr th:each="f : ${files}">
+                            <td><b th:text="${f.iface}">接口</b></td>
+                            <td class="mono" th:text="${f.file}">xxx/xxx.log</td>
+                            <td>
+                                <span class="badge badge-info" th:if="${!f.archived}">当天</span>
+                                <span class="badge badge-gray" th:if="${f.archived}">归档</span>
+                            </td>
+                            <td th:text="${f.sizeText}">0 B</td>
+                            <td th:text="${f.lastModified}">-</td>
+                            <td class="nowrap">
+                                <button class="btn btn-sm" type="button" data-act="view"
+                                        th:attr="data-file=${f.file}">查看</button>
+                                <a class="btn btn-sm" download data-no-shell="1"
+                                   th:href="|/api/iface-log/download?file=${f.file}|">下载</a>
+                                <button class="btn btn-sm btn-danger" type="button" data-act="clear"
+                                        th:attr="data-file=${f.file}"
+                                        th:text="${f.archived} ? '删除' : '清空'">清空</button>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(files)}" id="emptyRow">
+                            <td colspan="5">
+                                <div class="empty">还没有接口日志文件。执行一次推送任务、或让第三方调用一次接收接口后，这里就会出现对应的日志文件。</div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: modal}"></div>
+<script th:src="@{/js/app.js}"></script>
+<script>
+    const EMPTY_HTML = '<tr><td colspan="6"><div class="empty">还没有接口日志文件。执行一次推送任务、或让第三方调用一次接收接口后，这里就会出现对应的日志文件。</div></td></tr>';
+
+    function rowHtml(f) {
+        return '<tr>'
+            + '<td><b>' + escapeHtml(f.iface) + '</b></td>'
+            + '<td class="mono">' + escapeHtml(f.file) + '</td>'
+            + '<td>' + (f.archived
+                ? '<span class="badge badge-gray">归档</span>'
+                : '<span class="badge badge-info">当天</span>') + '</td>'
+            + '<td>' + escapeHtml(f.sizeText) + '</td>'
+            + '<td>' + escapeHtml(f.lastModified) + '</td>'
+            + '<td class="nowrap">'
+            + '<button class="btn btn-sm" type="button" data-act="view" data-file="' + escapeHtml(f.file) + '">查看</button> '
+            + '<a class="btn btn-sm" download data-no-shell="1" href="/api/iface-log/download?file=' + encodeURIComponent(f.file) + '">下载</a> '
+            + '<button class="btn btn-sm btn-danger" type="button" data-act="clear" data-file="' + escapeHtml(f.file) + '">'
+            + (f.archived ? '删除' : '清空') + '</button>'
+            + '</td></tr>';
+    }
+
+    async function loadFiles() {
+        try {
+            const r = await getJson('/api/iface-log/list');
+            const files = (r.data && r.data.files) || [];
+            const body = document.getElementById('fileBody');
+            document.getElementById('fileCount').textContent = files.length;
+            body.innerHTML = files.length ? files.map(rowHtml).join('') : EMPTY_HTML;
+        } catch (e) {
+            toast(e && e.message ? e.message : '加载接口日志列表失败', 'error');
+        }
+    }
+
+    /**
+     * 文件里每行是一条 JSON（便于机器解析），这里在展示时自动美化，方便人看。
+     * 解析失败的按原样输出，不会丢内容。
+     */
+    function prettyJsonLines(content) {
+        return content.split('\n').map(line => {
+            const t = line.trim();
+            if (!t.startsWith('{') || !t.endsWith('}')) {
+                return line;
+            }
+            try {
+                return JSON.stringify(JSON.parse(t), null, 2);
+            } catch (e) {
+                return line;
+            }
+        }).join('\n');
+    }
+
+    async function viewLog(file) {
+        try {
+            const r = await getJson('/api/iface-log/view?file=' + encodeURIComponent(file) + '&lines=1200');
+            const content = (r.data && r.data.content) || '（文件内容为空）';
+            openModal('接口日志：' + file,
+                '<pre class="code">' + escapeHtml(prettyJsonLines(content)) + '</pre>');
+        } catch (e) {
+            toast(e && e.message ? e.message : '读取接口日志失败', 'error');
+        }
+    }
+
+    async function clearLog(file) {
+        const archived = file.endsWith('.gz');
+        const tip = archived
+            ? '确定删除归档「' + file + '」吗？此操作不可恢复。'
+            : '确定清空「' + file + '」当天已记录的接口日志吗？\n此操作不可恢复，但不会影响数据库里的执行日志。';
+        if (!confirm(tip)) {
+            return;
+        }
+        try {
+            const r = await postForm('/api/iface-log/clear', {file: file});
+            toast(r.message || '已清空', r.code === 0 ? 'success' : 'error');
+            if (r.code === 0) await loadFiles();
+        } catch (e) {
+            toast(e && e.message ? e.message : '清空失败', 'error');
+        }
+    }
+
+    document.getElementById('btnRefresh').addEventListener('click', loadFiles);
+
+    // 自动刷新：任务执行是异步的，日志文件边跑边写；
+    // 不自动刷新的话，手动点"立即执行"后页面看不到新文件，容易误以为"没打日志"。
+    let autoTimer = null;
+    function syncAutoRefresh() {
+        const on = document.getElementById('autoRefresh').checked;
+        if (autoTimer) {
+            clearInterval(autoTimer);
+            autoTimer = null;
+        }
+        if (on) {
+            autoTimer = setInterval(loadFiles, 5000);
+        }
+    }
+    document.getElementById('autoRefresh').addEventListener('change', syncAutoRefresh);
+    syncAutoRefresh();
+
+    document.getElementById('fileBody').addEventListener('click', function (e) {
+        const btn = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
+        if (!btn) return;
+        const file = btn.getAttribute('data-file');
+        if (btn.getAttribute('data-act') === 'view') {
+            viewLog(file);
+        } else {
+            clearLog(file);
+        }
+    });
+
+    /* 按 traceId 定位：一次执行的完整过程 + 报文，不用在几千行里翻 */
+    document.getElementById('traceForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const tid = document.getElementById('traceId').value.trim();
+        const iface = document.getElementById('traceIface').value.trim();
+        const date = document.getElementById('traceDate').value;
+        const panel = document.getElementById('tracePanel');
+        if (!tid) {
+            toast('请填写 traceId', 'error');
+            return;
+        }
+        let url = '/api/iface-log/trace?traceId=' + encodeURIComponent(tid);
+        if (iface) url += '&iface=' + encodeURIComponent(iface);
+        if (date) url += '&date=' + encodeURIComponent(date);
+        panel.innerHTML = '<div class="text-sub">正在查找…</div>';
+        try {
+            const r = await getJson(url);
+            if (r.code !== 0) {
+                panel.innerHTML = '<pre class="code">' + escapeHtml(r.message) + '</pre>';
+                toast(r.message, 'error');
+                return;
+            }
+            const d = r.data || {};
+            if (!d.found) {
+                panel.innerHTML = '<pre class="code">' + escapeHtml(d.message || '没有找到') + '</pre>';
+                toast('没有找到这次执行的接口日志', 'error');
+                return;
+            }
+            panel.innerHTML = '<div class="text-sub" style="font-size:12px;margin-bottom:6px;">'
+                + '命中 ' + escapeHtml(d.iface) + ' → ' + escapeHtml(d.file)
+                + (d.archived ? '（归档）' : '') + '，共 ' + (d.lineCount || 0) + ' 行</div>'
+                + payloadBlocks('请求报文', d.requests)
+                + payloadBlocks('响应报文', d.responses)
+                + '<div class="section-title">本次执行全过程</div><pre class="code">'
+                + escapeHtml(d.raw || '') + '</pre>';
+            toast('已定位到 ' + (d.iface || '') + ' 的这次执行', 'success');
+        } catch (err) {
+            panel.innerHTML = '<pre class="code">查询失败：'
+                + escapeHtml(err && err.message ? err.message : String(err)) + '</pre>';
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: commonHead('第三方系统')}"></head>
+<body>
+<div class="layout">
+    <div th:replace="~{fragments/layout :: sidebar('partner')}"></div>
+
+    <div class="main">
+        <div th:replace="~{fragments/layout :: topbar('第三方系统管理')}"></div>
+
+        <div class="content">
+            <div class="card">
+                <div class="card-head">
+                    <span>对接方清单</span>
+                    <div class="actions">
+                        <button class="btn btn-sm btn-primary" type="button" onclick="editPartner(null)">＋ 新增对接方</button>
+                    </div>
+                </div>
+                <div class="card-body tight">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>系统编码</th>
+                            <th>系统名称</th>
+                            <th>服务地址</th>
+                            <th>认证方式</th>
+                            <th>超时</th>
+                            <th>状态</th>
+                            <th>备注</th>
+                            <th class="nowrap">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(partners)}">
+                            <td colspan="8" class="empty">暂无对接方，请先新增</td>
+                        </tr>
+                        <tr th:each="p : ${partners}">
+                            <td class="mono" th:text="${p.partnerCode}">CODE</td>
+                            <td th:text="${p.partnerName}">名称</td>
+                            <td class="mono" style="font-size:12px;" th:text="${p.baseUrl}">url</td>
+                            <td>
+                                <span class="badge badge-info" th:text="${p.authType}">NONE</span>
+                                <span class="text-sub mono" style="font-size:11.5px;"
+                                      th:if="${p.authUser != null and !p.authUser.isEmpty()}"
+                                      th:text="'(' + ${p.authUser} + ')'"></span>
+                            </td>
+                            <td th:text="${p.timeoutMs + ' ms'}">-</td>
+                            <td>
+                                <span th:if="${p.status == 1}" class="badge badge-success">启用</span>
+                                <span th:unless="${p.status == 1}" class="badge badge-gray">停用</span>
+                            </td>
+                            <td class="text-sub" style="font-size:12px;" th:text="${p.remark}"></td>
+                            <td class="nowrap">
+                                <button class="btn-link" type="button" th:attr="onclick=|editPartner(${p.id})|">编辑</button>
+                                <button class="btn-link" type="button"
+                                        th:attr="onclick=|togglePartner(${p.id}, ${p.status != 1})|"
+                                        th:text="${p.status == 1} ? '停用' : '启用'">启用</button>
+                                <button class="btn-link danger" type="button"
+                                        th:attr="onclick=|deletePartner(${p.id}, '${p.partnerCode}')|">删除</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><span>认证方式说明</span></div>
+                <div class="card-body text-sub" style="font-size:13px;line-height:2;">
+                    <b>NONE</b> 不携带认证信息 ·
+                    <b>BASIC</b> Authorization: Basic base64(用户名:密钥) ·
+                    <b>BEARER</b> Authorization: Bearer 密钥 ·
+                    <b>API_KEY</b> 请求头 X-API-KEY ·
+                    <b>HEADER</b> 自定义请求头（认证用户名字段即 Header 名）<br>
+                    密钥采用 AES-GCM 加密后入库，页面仅显示掩码；如需更换，直接填写新值保存即可。
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: modal}"></div>
+<script th:src="@{/js/app.js}"></script>
+<script>
+    function formHtml(d) {
+        d = d || {};
+        const authTypes = ['NONE', 'BASIC', 'BEARER', 'API_KEY', 'HEADER'];
+        return ''
+            + '<div class="form-row">'
+            + '  <div class="field"><label>系统编码<span class="req">*</span></label>'
+            + '    <input type="text" id="p_code" value="' + escapeHtml(d.partnerCode || '') + '"'
+            + (d.id ? ' readonly' : '') + ' placeholder="THIRD_ORDER"></div>'
+            + '  <div class="field"><label>系统名称<span class="req">*</span></label>'
+            + '    <input type="text" id="p_name" value="' + escapeHtml(d.partnerName || '') + '" placeholder="三方订单中心"></div>'
+            + '</div>'
+            + '<div class="form-row">'
+            + '  <div class="field full"><label>服务地址 baseUrl<span class="req">*</span></label>'
+            + '    <input type="text" id="p_url" value="' + escapeHtml(d.baseUrl || '') + '" placeholder="https://api.thirdparty.com"></div>'
+            + '</div>'
+            + '<div class="form-row">'
+            + '  <div class="field"><label>认证方式</label><select id="p_authType">'
+            + authTypes.map(t => '<option value="' + t + '"' + (d.authType === t ? ' selected' : '') + '>' + t + '</option>').join('')
+            + '  </select></div>'
+            + '  <div class="field"><label>认证用户名 / Header 名</label>'
+            + '    <input type="text" id="p_authUser" value="' + escapeHtml(d.authUser || '') + '" placeholder="BASIC 用户名 或 自定义 Header 名"></div>'
+            + '  <div class="field"><label>密钥 / Token</label>'
+            + '    <input type="text" id="p_authSecret" value="' + escapeHtml(d.authSecret || '') + '" placeholder="留空表示不修改"></div>'
+            + '</div>'
+            + '<div class="form-row">'
+            + '  <div class="field"><label>超时（毫秒）</label>'
+            + '    <input type="number" id="p_timeout" value="' + (d.timeoutMs || 15000) + '"></div>'
+            + '  <div class="field"><label>状态</label><select id="p_status">'
+            + '    <option value="1"' + (d.status !== 0 ? ' selected' : '') + '>启用</option>'
+            + '    <option value="0"' + (d.status === 0 ? ' selected' : '') + '>停用</option>'
+            + '  </select></div>'
+            + '</div>'
+            + '<div class="field full"><label>公共请求头（JSON 对象）</label>'
+            + '  <textarea id="p_headers" placeholder=\'{"X-Client":"project-system"}\'>' + escapeHtml(d.headersJson || '') + '</textarea></div>'
+            + '<div class="field full"><label>备注</label>'
+            + '  <input type="text" id="p_remark" value="' + escapeHtml(d.remark || '') + '"></div>'
+            + '<input type="hidden" id="p_id" value="' + (d.id || '') + '">';
+    }
+
+    async function editPartner(id) {
+        let data = {};
+        if (id) {
+            const r = await getJson('/api/partner/detail/' + id);
+            if (r.code !== 0) {
+                toast(r.message, 'error');
+                return;
+            }
+            data = r.data;
+        }
+        openModal(id ? '编辑对接方' : '新增对接方', formHtml(data));
+        const foot = document.querySelector('.modal-foot');
+        foot.innerHTML = '<button class="btn" type="button" onclick="closeModal()">取消</button> '
+            + '<button class="btn btn-primary" type="button" onclick="savePartner()">保存</button>';
+    }
+
+    async function savePartner() {
+        const payload = {
+            id: document.getElementById('p_id').value || null,
+            partnerCode: document.getElementById('p_code').value,
+            partnerName: document.getElementById('p_name').value,
+            baseUrl: document.getElementById('p_url').value,
+            authType: document.getElementById('p_authType').value,
+            authUser: document.getElementById('p_authUser').value,
+            authSecret: document.getElementById('p_authSecret').value,
+            headersJson: document.getElementById('p_headers').value,
+            timeoutMs: Number(document.getElementById('p_timeout').value || 15000),
+            status: Number(document.getElementById('p_status').value),
+            remark: document.getElementById('p_remark').value
+        };
+        const r = await postJson('/api/partner/save', payload);
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) {
+            closeModal();
+            setTimeout(() => location.reload(), 700);
+        }
+    }
+
+    async function togglePartner(id, enabled) {
+        const r = await postForm('/api/partner/toggle', {id: id, enabled: enabled});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) setTimeout(() => location.reload(), 700);
+    }
+
+    async function deletePartner(id, code) {
+        if (!confirm('确认删除对接方【' + code + '】？')) return;
+        const r = await postForm('/api/partner/delete', {id: id});
+        toast(r.message, r.code === 0 ? 'success' : 'error');
+        if (r.code === 0) setTimeout(() => location.reload(), 700);
+    }
+</script>
+</body>
+</html>
