@@ -11,7 +11,7 @@
 #       注意：用命令行覆盖时不要写成 --spring.datasource.url=（等号后留空），
 #             空串会清空配置；Hibernate 方言无需配置，平台按实际连接自动识别。
 #  各数据库的详细参数见 application-{mysql,oracle,postgresql,h2}.yml
-#  库名（schema）：MySQL/PostgreSQL 使用 interchange 库；Oracle 使用 interchange 用户
+#  库名（schema）：统一使用 t6 库（MySQL/PostgreSQL 库名 t6；Oracle 用户 t6）
 # ==========================================================================
 server:
   # 默认 18080。为什么不用 8080？
@@ -56,8 +56,16 @@ spring:
 
   jpa:
     hibernate:
-      # 建议生产环境改为 validate，并使用 db/ 目录下的建表脚本初始化
-      ddl-auto: ${JPA_DDL:update}
+      # none（默认）：平台不做任何 DDL，表由 db/schema-*.sql 手工初始化。
+      #   为什么默认关闭自动建表：平台库就是业务库 t6，启动时 Hibernate 的
+      #   ddl-auto=update/validate 会先把整个库的元数据读一遍（JDBC DatabaseMetaData），
+      #   若库里有自定义函数而连接账号没有 EXECUTE 权限，就会直接启动失败，例如：
+      #     SQLGrammarException: execute command denied to user 'x'@'%' for routine 't6.nvl'
+      #   自动 DDL 放在别人的业务库上也不合适。
+      # update：首次部署时可临时打开让 Hibernate 自动建表，建完改回 none。
+      #   启动参数覆盖：--spring.jpa.hibernate.ddl-auto=update  或  JPA_DDL=update
+      #   手工初始化：mysql -uroot -p t6 < db/schema-mysql.sql
+      ddl-auto: ${JPA_DDL:none}
     open-in-view: false
     properties:
       hibernate:

@@ -2,11 +2,11 @@
 #  PostgreSQL 12+
 #  启动方式： --spring.profiles.active=postgresql   或   DB_TYPE=postgresql
 #  建表脚本： db/schema-postgresql.sql
-#  注意：需要先建库  CREATE DATABASE interchange;
+#  注意：需要先建库  CREATE DATABASE t6;
 # ==========================================================================
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/interchange}
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/t6}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: ${DB_DRIVER:org.postgresql.Driver}

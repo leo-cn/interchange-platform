@@ -2,9 +2,9 @@
 --  接口交换平台 · Oracle 12c+ 建表脚本
 --  使用方式：
 --    1) 用 DBA 账号建用户：
---         CREATE USER interchange IDENTIFIED BY interchange;
---         GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO interchange;
---    2) 以 interchange 用户执行本脚本；
+--         CREATE USER t6 IDENTIFIED BY t6;
+--         GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO t6;
+--    2) 以 t6 用户执行本脚本；
 --    3) 启动参数：--spring.profiles.active=oracle
 --    4) 生产环境建议 --spring.jpa.hibernate.ddl-auto=validate
 --

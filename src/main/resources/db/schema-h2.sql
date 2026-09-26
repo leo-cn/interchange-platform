@@ -1,9 +1,9 @@
 -- ============================================================================
 --  接口交换平台 · H2 建表脚本（默认数据库，一般无需手工执行）
 --  应用启动时 ddl-auto=update 会自动建表；本脚本仅供审阅或手工初始化。
---  数据文件：./data/interchange.mv.db
+--  数据文件：./data/t6.mv.db
 --  控制台：http://127.0.0.1:18080/h2-console
---          JDBC URL: jdbc:h2:file:./data/interchange;AUTO_SERVER=TRUE
+--          JDBC URL: jdbc:h2:file:./data/t6;AUTO_SERVER=TRUE
 --          用户名: sa    密码: 空
 --  注意：H2 2.x 不支持 AUTO_SERVER=TRUE 与 DB_CLOSE_ON_EXIT=FALSE 同时出现
 -- ============================================================================

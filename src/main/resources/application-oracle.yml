@@ -4,8 +4,8 @@
 #  建表脚本： db/schema-oracle.sql
 #  连接串说明：//host:port/service_name （服务名，不是 SID）
 #  建议为平台单独建用户：
-#     CREATE USER interchange IDENTIFIED BY interchange;
-#     GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO interchange;
+#     CREATE USER t6 IDENTIFIED BY t6;
+#     GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO t6;
 #
 #  提示：Oracle 生产环境建议 ddl-auto=validate，先执行 db/schema-oracle.sql 建表。
 #       Oracle 无 BOOLEAN 类型，Hibernate 会自动用 NUMBER(1) 存储布尔字段。
@@ -13,8 +13,8 @@
 spring:
   datasource:
     url: ${DB_URL:jdbc:oracle:thin:@//127.0.0.1:1521/ORCLPDB1}
-    username: ${DB_USER:interchange}
-    password: ${DB_PASSWORD:interchange}
+    username: ${DB_USER:t6}
+    password: ${DB_PASSWORD:t6}
     driver-class-name: ${DB_DRIVER:oracle.jdbc.OracleDriver}
     hikari:
       pool-name: interchange-pool

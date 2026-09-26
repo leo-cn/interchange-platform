@@ -1,8 +1,8 @@
 -- ============================================================================
 --  接口交换平台 · MySQL 8.x 建表脚本
 --  使用方式：
---    1) CREATE DATABASE interchange DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
---    2) mysql -uroot -p interchange < schema-mysql.sql
+--    1) CREATE DATABASE t6 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+--    2) mysql -uroot -p t6 < schema-mysql.sql
 --    3) 启动参数：--spring.profiles.active=mysql
 --  说明：应用默认 ddl-auto=update 也会自动建表；脚本用于生产环境手工初始化/审阅。
 -- ============================================================================

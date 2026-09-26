@@ -5,11 +5,11 @@ rem ==========================================================================
 rem  Interchange Platform - one-click start
 rem
 rem  Database is decided by Profile, default is mysql:
-rem      schema interchange (auto created), user root / pass 123
+rem      schema t6 (auto created), user root / pass 123
 rem  To use another database: change DB_TYPE below to oracle / postgresql / h2
 rem
 rem  To override connection params without editing config files, set env vars:
-rem      set "DB_URL=jdbc:mysql://192.168.1.10:3306/interchange?useSSL=false"
+rem      set "DB_URL=jdbc:mysql://192.168.1.10:3306/t6?useSSL=false"
 rem      set "DB_USER=root"
 rem      set "DB_PASSWORD=yourpassword"
 rem  DO NOT pass these as EMPTY command line args (e.g. --spring.datasource.url=),

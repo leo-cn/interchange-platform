@@ -76,7 +76,7 @@ public class DatabaseGuard {
 
                     修复办法（任选其一）：
                       1) 使用 start.bat 启动，或直接 java -jar interchange-platform.jar
-                         （不带参数时默认走 MySQL：127.0.0.1:3306/interchange，账号 root/123）
+                         （不带参数时默认走 MySQL：127.0.0.1:3306/t6，账号 root/123）
                       2) 显式指定 Profile：--spring.profiles.active=mysql
                       3) 确实要用内存库做临时测试：加 --app.allow-memory-db=true
                     =========================================================="""

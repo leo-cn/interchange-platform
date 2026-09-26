@@ -1,8 +1,8 @@
 -- ============================================================================
 --  接口交换平台 · PostgreSQL 12+ 建表脚本
 --  使用方式：
---    1) CREATE DATABASE interchange;
---    2) psql -U postgres -d interchange -f schema-postgresql.sql
+--    1) CREATE DATABASE t6;
+--    2) psql -U postgres -d t6 -f schema-postgresql.sql
 --    3) 启动参数：--spring.profiles.active=postgresql
 -- ============================================================================
 
