@@ -40,7 +40,6 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p><b>这是模板代码</b>：真实项目的换票地址、参数名、响应字段几乎都不一样
  * （有的是 {@code appKey}，有的返回 {@code data.accessToken}），照着改
- * {@link #requestToken} 里的请求体与解析即可。
  */
 @Component
 public class TokenExchangeTaskHandler implements TaskHandler {

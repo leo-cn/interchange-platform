@@ -14,9 +14,6 @@ import java.util.Map;
 
 /**
  * 接入方凭证（appKey / appSecret）管理接口。
- *
- * <p>凭证本身不是访问令牌：请求方拿它调 {@code POST /api/oauth/token} 换一个
- * 有时效的 access_token，真正调接口用那个（在缓存里，不落库）。
  */
 @RestController
 @RequestMapping("/api/token")

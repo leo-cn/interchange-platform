@@ -12,11 +12,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @Entity
-@Table(name = "receive_log",
-        indexes = {
-                @Index(name = "idx_recv_api_code", columnList = "api_code"),
-                @Index(name = "idx_recv_time", columnList = "receive_time")
-        })
+@Table(name = "receive_log")
 public class ReceiveLog {
 
     @Id

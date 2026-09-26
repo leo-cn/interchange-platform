@@ -8,12 +8,6 @@ import java.time.LocalDateTime;
 /**
  * 平台侧的用户扩展属性。
  *
- * <p>平台<strong>没有自己的用户表</strong>：账号主数据（登录名、姓名、口令、启停）
- * 全部在业务系统的用户表（t6.sys_user）里，本表只挂在业务用户主键上，
- * 存平台专有的东西 —— 角色、接口令牌、平台口令、最后登录时间。
- *
- * <p>这样两边共用一份账号，业务系统零改动，平台也不必把口令塞进业务表。
- * 关联键 {@code ext_id} = 业务库 t6.sys_user.ID（varchar(32) 的 UUID 主键）。
  */
 @Data
 @Entity

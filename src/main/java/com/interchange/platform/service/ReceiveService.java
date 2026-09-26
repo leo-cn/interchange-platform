@@ -8,19 +8,19 @@ import com.interchange.platform.entity.ReceiveLog;
 import com.interchange.platform.entity.SysUserExt;
 import com.interchange.platform.repository.SysUserExtRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.interchange.platform.service.handler.ReceiveHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * 接收侧服务：处理第三方系统调用本平台的接口。
- *
- * <p>统一流程：Token 鉴权 → 报文落库 → 业务处理 → 返回标准响应。
- * 业务处理在 {@link #handleBusiness} 中扩展（例如写入本系统业务表、触发后续流程）。
  */
 @Service
 public class ReceiveService {
@@ -34,6 +34,8 @@ public class ReceiveService {
     private final ReceiveApiService receiveApiService;
     private final LogStore logStore;
     private final InterfaceLogService interfaceLogService;
+    /** 接收侧业务处理器表：apiCode(小写) → 处理器，启动时从 Spring 容器收集 */
+    private final Map<String, ReceiveHandler> receiveHandlers = new HashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ReceiveService(AppProps appProps,
@@ -42,7 +44,8 @@ public class ReceiveService {
                           ServerTokenService serverTokenService,
                           ReceiveApiService receiveApiService,
                           LogStore logStore,
-                          InterfaceLogService interfaceLogService) {
+                          InterfaceLogService interfaceLogService,
+                          List<ReceiveHandler> handlers) {
         this.appProps = appProps;
         this.userExtRepository = userExtRepository;
         this.directory = directory;
@@ -50,6 +53,18 @@ public class ReceiveService {
         this.receiveApiService = receiveApiService;
         this.logStore = logStore;
         this.interfaceLogService = interfaceLogService;
+        // 收集所有 ReceiveHandler 实现，按 apiCode 建路由表；重复注册保留先到的并告警
+        for (ReceiveHandler h : handlers) {
+            ReceiveHandler prev = receiveHandlers.putIfAbsent(h.apiCode().toLowerCase(), h);
+            if (prev != null) {
+                log.warn("接收处理器 apiCode={} 重复注册：{} 与 {}，保留 {}",
+                        h.apiCode(), prev.getClass().getSimpleName(),
+                        h.getClass().getSimpleName(), prev.getClass().getSimpleName());
+            } else {
+                log.info("接收处理器已注册: apiCode={}, handler={}",
+                        h.apiCode(), h.getClass().getSimpleName());
+            }
+        }
     }
 
     /**
@@ -58,7 +73,7 @@ public class ReceiveService {
      * @param apiCode  接口编码（URL 上的 {apiCode}）
      * @param method   HTTP 方法
      * @param headers  请求头（JSON 字符串，落库用）
-     * @param callback 从请求头提取的令牌
+     * @param token 从请求头提取的令牌
      * @param body     报文体
      * @param remoteIp 来源 IP
      */
@@ -101,7 +116,7 @@ public class ReceiveService {
             entity.setCaller(caller);
 
             // 2) 业务处理
-            Map<String, Object> data = handleBusiness(apiCode, body, traceId);
+            Map<String, Object> data = handleBusiness(apiCode, body, traceId, parseHeaders(headers));
 
             R<Map<String, Object>> response = R.ok("接收成功", data);
             response.setTraceId(traceId);
@@ -162,11 +177,6 @@ public class ReceiveService {
 
     /**
      * 令牌鉴权，按这个顺序匹配：
-     * <ol>
-     *   <li>全局令牌 {@code app.receive-token} —— 所有人共用，只适合内网联调；</li>
-     *   <li>接口令牌 {@code api_token} 表 —— 一个请求方一个，可启停、可限制能调哪些接口；</li>
-     *   <li>账号令牌 {@code sys_user_ext.api_token} —— 跟着人走。</li>
-     * </ol>
      *
      * @param apiCode 本次调用的接口编码，用于校验接口令牌的可调用范围
      * @return 调用方标识
@@ -205,29 +215,28 @@ public class ReceiveService {
     }
 
     /**
-     * 业务处理扩展点。
-     *
-     * <p>当前实现提供一个可直接联调的样例：
-     * <ul>
-     *   <li>{@code ping} —— 心跳探测；</li>
-     *   <li>其他已登记接口 —— 原样回执（ack），并返回报文长度。</li>
-     * </ul>
-     * 实际项目在此处按 apiCode 分发到各自的业务处理逻辑即可。
-     *
-     * <p>注意：能走到这里的 apiCode 都已在 {@code receive_api} 表登记且处于启用状态
-     * （未登记的会在 {@link #handle} 开头被拦掉），所以这里的兜底回执不会再被无关请求触发。
      */
-    private Map<String, Object> handleBusiness(String apiCode, String body, String traceId) {
+    private Map<String, Object> handleBusiness(String apiCode, String body, String traceId,
+                                               Map<String, String> headerMap) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("apiCode", apiCode);
         data.put("received", true);
 
-        if ("ping".equalsIgnoreCase(apiCode)) {
-            data.put("pong", true);
-            data.put("serverTime", Utils.format(LocalDateTime.now()));
-            return data;
+        ReceiveHandler handler = receiveHandlers.get(apiCode.toLowerCase());
+        if (handler != null) {
+            try {
+                Map<String, Object> result = handler.handle(body, traceId, headerMap);
+                if (result != null) {
+                    data.putAll(result);
+                }
+                return data;
+            } catch (ReceiveHandler.BusinessException e) {
+                // 业务失败原样透传状态码（400 参数错误等），响应文案与日志由外层统一处理
+                throw new ReceiveException(e.getHttpStatus(), e.getMessage());
+            }
         }
 
+        // 兜底：已登记但尚未挂业务处理器的接口
         int length = body == null ? 0 : body.length();
         data.put("bodyLength", length);
         data.put("ack", "已接收，报文长度 " + length);
@@ -248,6 +257,25 @@ public class ReceiveService {
             }
         }
         return data;
+    }
+
+    /** 把落库用的请求头 JSON 还原成 Map，交给处理器只读使用；解析失败返回空 Map */
+    private Map<String, String> parseHeaders(String headersJson) {
+        Map<String, String> map = new LinkedHashMap<>();
+        if (headersJson == null || headersJson.isBlank()) {
+            return map;
+        }
+        try {
+            Map<?, ?> raw = objectMapper.readValue(headersJson, Map.class);
+            raw.forEach((k, v) -> {
+                if (k != null && v != null) {
+                    map.put(String.valueOf(k), String.valueOf(v));
+                }
+            });
+        } catch (Exception ignored) {
+            // headers JSON 是引擎自己生成的，理论上不会解析失败；失败也不阻断业务
+        }
+        return map;
     }
 
     /** 接收侧业务异常，携带 HTTP 状态语义 */

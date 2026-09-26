@@ -86,15 +86,6 @@ public class DataInitializer implements ApplicationRunner {
 
     /**
      * 接收接口清单的初始化：
-     * <ol>
-     *   <li>内置样例接口 —— {@code ping} 心跳、{@code order-receive} 演示回执；</li>
-     *   <li><b>把历史上被调用过、但没登记过的 apiCode 自动补登记</b>。</li>
-     * </ol>
-     *
-     * <p>第 2 步是升级保护：加了这张表以后，未登记的接口会被拒。
-     * 老版本上正在对接的第三方如果恰好没补登记，升级当天就会集体 401，
-     * 所以这里按 receive_log 里出现过的编码兜底补一遍，标记为自动导入，
-     * 让运维事后到页面上逐个改名字、改鉴权方式，而不是业务先挂掉。
      */
     private void initReceiveApis() {
         try {
@@ -121,10 +112,6 @@ public class DataInitializer implements ApplicationRunner {
 
     /**
      * 把业务系统的 admin 账号映射成平台管理员。
-     *
-     * <p>平台不建自己的用户表，账号必须是业务系统里已经存在的 admin；
-     * 这里只补一条授权记录（角色 ADMIN + 平台口令 + 接口令牌）。
-     * 业务库连不上时不让启动失败，只打 WARN —— 否则网络抖动一次平台就起不来。
      */
     private void initPlatformAdmin() {
         try {

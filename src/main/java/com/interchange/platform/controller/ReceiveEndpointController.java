@@ -13,11 +13,6 @@ import java.util.Map;
 
 /**
  * 接收接口清单（登记表）的管理端接口：先登记，第三方才调得通 {@code /api/receive/{apiCode}}。
- *
- * <p>注意别和 {@link ReceiveApiController} 搞混：那个是<b>运行时</b>接收端点
- * （{@code /api/receive/**}），这个是<b>管理端</b>的接口清单维护（{@code /api/receive-api/**}）。
- *
- * <p>登记项本身不含任何令牌信息 —— 令牌在「接入方」那侧（凭证 + 签发缓存）。
  */
 @RestController
 @RequestMapping("/api/receive-api")

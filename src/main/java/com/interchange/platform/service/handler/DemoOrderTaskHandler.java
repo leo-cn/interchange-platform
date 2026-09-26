@@ -18,15 +18,6 @@ import java.util.Map;
 
 /**
  * 自定义处理器示例（code = demoOrder），一次性演示四类特殊处理：
- *
- * <ol>
- *   <li>字段转换 / 剔除敏感字段 —— {@link #transform}</li>
- *   <li>自定义报文结构 —— {@link #buildBody}</li>
- *   <li>签名请求头 —— {@link #beforeSend}</li>
- *   <li>按响应体业务码判成败 —— {@link #judge} / {@link #failureReason}</li>
- *   <li>推送后回写业务表 —— {@link #afterSend}</li>
- * </ol>
- *
  * <p>用法：在任务编辑页「自定义处理器」里填 <code>demoOrder</code>。
  * 没有任务配置它时，这个类完全不参与任何执行——老任务零影响。
  *

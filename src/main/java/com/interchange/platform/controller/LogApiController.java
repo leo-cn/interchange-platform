@@ -22,8 +22,6 @@ import java.util.Map;
 
 /**
  * 日志接口：详情查询 + 导出下载（TXT / CSV）。
- *
- * <p>下载接口沿用列表页的查询条件，导出“当前筛选结果”，最多 10000 条。
  */
 @RestController
 @RequestMapping("/api")

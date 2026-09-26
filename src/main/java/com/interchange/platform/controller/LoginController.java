@@ -17,7 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 登录与登出。页面其余部分见 {@link PageController}，接口见各 *ApiController。
+ * 登录与登出
  */
 @Controller
 public class LoginController {

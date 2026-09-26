@@ -332,7 +332,6 @@ public class InterfaceLogService {
 
     /**
      * 列出所有接口日志文件（含已压缩的历史归档），按最后修改时间倒序。
-     * file 字段是相对日志目录的路径，形如 {@code order-receive/order-receive.log}。
      */
     public List<Map<String, Object>> listFiles() {
         List<Map<String, Object>> list = new ArrayList<>();
@@ -367,16 +366,17 @@ public class InterfaceLogService {
     }
 
     /**
-     * 按 traceId 从接口日志里捞出“这一次执行”的完整记录（含请求/响应报文）。
+     * 按 traceId 切出本次执行的原始行，并解析出请求/响应报文。
      *
-     * <p>为什么需要它：数据库里的 task_log 报文列可以被关掉或截断，而排查问题时
-     * 往往只想要"这一条"的报文。日志文件里每次调用都打了「请求报文 / 响应报文」两行，
-     * 只是没有按 traceId 定位的入口——人肉翻文件不现实，这个方法就是补上这个入口。
+     * <p>匹配单位是整个 stage 块（主行 + 它前后的报文/结论行），而不是只有主行：
+     * 推送报文里的「消息级 traceId」只出现在缩进的报文行里（形如 {@code "traceId":"xxx"}），
+     * 与主行的执行级 traceId（{@code traceId=xxx}）不是同一个值——手里如果只有报文里
+     * 那个 traceId（对方系统回执里带的往往就是它），也必须能定位到这次执行。
      *
-     * <p>怎么定位：主行里都带 {@code traceId=xxx}，缩进两空格的行是它附属的报文/结论行。
-     * 注意 SEND_END 的 tail 在主行<b>之前</b>（见 {@link #MAIN_LAST_STAGES}），
-     * 所以这里用一个 pending 缓冲先把尾行攒着，等确认下一条主行属于本 traceId 再一起收。
-     * 空行是每次执行之间的分隔（{@link #blankLine}），遇到就清空缓冲。
+     * <p>块怎么切：主行开启一个新块，缩进两格的报文/结论行归属当前块；SEND_END 的
+     * tail 在主行<b>之前</b>（见 {@link #MAIN_LAST_STAGES}），所以用一个 pending 缓冲
+     * 先把尾行攒着，等主行出现后归入同一块再一起判定。空行是每次执行之间的分隔
+     * （{@link #blankLine}），遇到就结束当前块、作废未归属的尾行。
      *
      * <p>找不到时会继续往回翻历史归档（.log.gz，按时间倒序），最多翻到保留期为止。
      *
@@ -464,34 +464,56 @@ public class InterfaceLogService {
 
     /** 按 traceId 切出本次执行的原始行，并解析出请求/响应报文 */
     private Map<String, Object> extractByTraceId(String text, String traceId) {
-        String marker = "traceId=" + traceId;
+        // 两种写法都认：主行的 traceId=xxx、报文 JSON 里的 "traceId":"xxx"
+        String mainMarker = "traceId=" + traceId;
+        String jsonMarker = "\"" + mainMarker.replace("=", "\":\"") + "\"";
         List<String> hit = new ArrayList<>();
+        List<String> block = new ArrayList<>();
         List<String> pending = new ArrayList<>();
         boolean collecting = false;
+        boolean blockHit = false;
+        boolean pendingHit = false;
         for (String raw : text.split("\n", -1)) {
             String line = raw.endsWith("\r") ? raw.substring(0, raw.length() - 1) : raw;
             if (line.isBlank()) {
-                pending.clear();
+                // 空行 = 两次执行的分隔：当前块收口，未归属的尾行作废
+                if (blockHit) {
+                    hit.addAll(block);
+                }
+                block.clear();
+                blockHit = false;
                 collecting = false;
+                pending.clear();
+                pendingHit = false;
                 continue;
             }
+            boolean lineHit = line.contains(mainMarker) || line.contains(jsonMarker);
             if (line.startsWith(" ") || line.startsWith("\t")) {
                 if (collecting) {
-                    hit.add(line);
+                    block.add(line);
+                    blockHit = blockHit || lineHit;
                 } else {
+                    // 主行之前的尾行（SEND_END 的报文/结论在主行前），先攒着
                     pending.add(line);
+                    pendingHit = pendingHit || lineHit;
                 }
                 continue;
             }
-            if (line.contains(marker)) {
-                hit.addAll(pending);
-                pending.clear();
-                hit.add(line);
-                collecting = true;
-            } else {
-                pending.clear();
-                collecting = false;
+            // 主行：上一个块到此结束；之前攒的尾行归入本块一起判定
+            if (blockHit) {
+                hit.addAll(block);
             }
+            block.clear();
+            block.addAll(pending);
+            blockHit = pendingHit;
+            pending.clear();
+            pendingHit = false;
+            block.add(line);
+            blockHit = blockHit || lineHit;
+            collecting = true;
+        }
+        if (blockHit) {
+            hit.addAll(block);
         }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("found", !hit.isEmpty());

@@ -7,20 +7,6 @@ import java.time.LocalDateTime;
 
 /**
  * 接收接口登记表（服务方视角的接口清单）。
- *
- * <p>平台的接收端点只有一个 {@code POST /api/receive/{apiCode}}，apiCode 是 URL 上的一段。
- * 本表把这些 {@code apiCode} 变成平台上的正式资源：先登记，第三方才调得通。
- *
- * <p>为什么要这张表：
- * <ul>
- *   <li><b>接口有清单</b>：页面上能看到对外开放了哪些接口，不再散落在代码、配置和人的记忆里；</li>
- *   <li><b>拼错不再静默通过</b>：未登记的接口直接按"接口未定义"拒绝，
- *       而不是被 {@code ReceiveService#handleBusiness} 的兜底逻辑原样回执成成功；</li>
- *   <li><b>授权能勾选</b>：接入方的"可调用接口"从手工填字符串变成从这份清单里多选。</li>
- * </ul>
- *
- * <p>本表不存令牌。令牌是 {@link ApiToken}（凭证）+ {@code ServerTokenService}（签发缓存）的事，
- * 本表只回答"有没有这个接口、开没开、要不要校验令牌"。
  */
 @Data
 @Entity

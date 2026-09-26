@@ -13,11 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "interface_task",
-        uniqueConstraints = @UniqueConstraint(name = "uk_task_code", columnNames = "task_code"),
-        indexes = {
-                @Index(name = "idx_task_enabled", columnList = "enabled"),
-                @Index(name = "idx_task_partner", columnList = "partner_id")
-        })
+        uniqueConstraints = @UniqueConstraint(name = "uk_task_code", columnNames = "task_code"))
 public class InterfaceTask {
 
     @Id

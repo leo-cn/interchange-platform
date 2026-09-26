@@ -122,17 +122,21 @@ public class ServerTokenService {
             return expireAt;
         }
 
-        public LocalDateTime expireTime() {
+        /**
+         * 到期时间（JSON 输出用，页面「当前有效令牌」的过期列直接取它）。
+         * 注意命名必须是 getXxx 前缀，否则 Jackson 不序列化。
+         */
+        public LocalDateTime getExpireTime() {
             return LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(expireAt),
                     java.time.ZoneId.systemDefault());
         }
 
-        public LocalDateTime issueTime() {
+        public LocalDateTime getIssueTime() {
             return LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(issueAt),
                     java.time.ZoneId.systemDefault());
         }
 
-        public LocalDateTime lastSeenTime() {
+        public LocalDateTime getLastSeenTime() {
             return LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(lastSeenAt),
                     java.time.ZoneId.systemDefault());
         }

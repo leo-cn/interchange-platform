@@ -14,19 +14,6 @@ import java.util.Map;
 
 /**
  * 服务方令牌签发接口（免登录，第三方用凭证来换票）。
- *
- * <pre>
- *   POST /api/oauth/token
- *   Content-Type: application/x-www-form-urlencoded
- *   appKey=AK-XXXX&amp;appSecret=XXXX          （也认 client_id / client_secret）
- *
- *   200 {"code":0,"data":{"access_token":"AT-…","token_type":"Bearer",
- *                         "expires_in":7200,"expire_at":"2026-09-25 10:00:00"}}
- * </pre>
- *
- * <p>换到的 access_token 只在服务端缓存里存在（不落库），到期自动失效。
- * 之后每次调 {@code /api/receive/{apiCode}} 在请求头带上它：
- * {@code X-Token: AT-…} 或 {@code Authorization: Bearer AT-…}。
  */
 @RestController
 @RequestMapping("/api/oauth")

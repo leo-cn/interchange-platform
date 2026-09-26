@@ -12,12 +12,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @Entity
-@Table(name = "task_log",
-        indexes = {
-                @Index(name = "idx_log_task_code", columnList = "task_code"),
-                @Index(name = "idx_log_start_time", columnList = "start_time"),
-                @Index(name = "idx_log_status", columnList = "status")
-        })
+@Table(name = "task_log")
 public class TaskLog {
 
     @Id

@@ -7,17 +7,6 @@ import java.time.LocalDateTime;
 
 /**
  * 接入方凭证：作为<b>服务方</b>时，给每个请求方（第三方系统）发的 appKey / appSecret。
- *
- * <p>注意区分两个东西：
- * <ul>
- *   <li><b>本表存的是凭证</b>（appKey + appSecret），长期有效，用来换票；</li>
- *   <li><b>真正访问接口用的 access_token 不落库</b>，由
- *       {@code ServerTokenService} 签发后放内存缓存，带到期时间，过期自动失效。</li>
- * </ul>
- *
- * <p>流程：请求方拿 appKey/appSecret 调 {@code POST /api/oauth/token} 换一个
- * access_token（有时效），之后每次调 {@code /api/receive/**} 在请求头带上它；
- * 平台校验时查缓存，不查数据库。
  */
 @Data
 @Entity

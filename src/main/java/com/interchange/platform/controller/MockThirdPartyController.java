@@ -13,8 +13,6 @@ import java.util.Map;
 
 /**
  * 内置「模拟第三方系统」，仅用于联调自测：让平台开箱即可跑通完整推送链路。
- *
- * <p>生产环境请删除该类，或停用内置对接方 DEMO_THIRD。
  */
 @RestController
 @RequestMapping("/api/mock/thirdparty")

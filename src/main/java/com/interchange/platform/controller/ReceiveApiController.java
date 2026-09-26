@@ -14,8 +14,6 @@ import java.util.Map;
 /**
  * 接收侧对外接口。
  *
- * <p>第三方系统调用：{@code POST /api/receive/{apiCode}}，请求头携带 {@code X-Token: <令牌>}。
- * 返回统一的 {@code {code,message,data,traceId}} 结构，并落地接收日志。
  */
 @RestController
 @RequestMapping("/api/receive")
