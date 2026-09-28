@@ -1,4 +1,4 @@
-package com.interchange.platform.controller;
+package com.interchange.platform.controller.web;
 
 import com.interchange.platform.common.BizException;
 import com.interchange.platform.common.LoginUser;

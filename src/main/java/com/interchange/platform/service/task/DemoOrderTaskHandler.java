@@ -1,4 +1,4 @@
-package com.interchange.platform.service.handler;
+package com.interchange.platform.service.task;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

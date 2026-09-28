@@ -77,8 +77,11 @@ public class ReceiveService {
      * @param body     报文体
      * @param remoteIp 来源 IP
      */
-    public R<Map<String, Object>> handle(String apiCode, String method, String headers,
-                                         String token, String body, String remoteIp) {
+    /**
+     * @return 默认是统一响应 {@link R}；处理器声明 {@code rawBody()} 时返回它自己的 Map
+     */
+    public Object handle(String apiCode, String method, String headers,
+                         String token, String body, String remoteIp) {
         long start = System.currentTimeMillis();
         String traceId = TraceId.generate();
 
@@ -118,8 +121,17 @@ public class ReceiveService {
             // 2) 业务处理
             Map<String, Object> data = handleBusiness(apiCode, body, traceId, parseHeaders(headers));
 
-            R<Map<String, Object>> response = R.ok("接收成功", data);
-            response.setTraceId(traceId);
+            // 处理器可以声明 rawBody()，要求响应体就是它返回的 Map（对齐第三方既定报文）；
+            // 默认统一包一层 R。注意 rawBody 时 traceId 进不了响应体，仍会落在接收日志里。
+            ReceiveHandler route = receiveHandlers.get(apiCode.toLowerCase());
+            Object response;
+            if (route != null && route.rawBody()) {
+                response = data;
+            } else {
+                R<Map<String, Object>> wrapped = R.ok("接收成功", data);
+                wrapped.setTraceId(traceId);
+                response = wrapped;
+            }
             entity.setStatus("SUCCESS");
             entity.setResponseBody(Utils.truncate(Utils.toJson(response), 200000));
             interfaceLogService.stage("RECEIVE", apiCode, null, traceId, "RESPONDED",

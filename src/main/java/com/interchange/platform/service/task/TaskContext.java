@@ -1,4 +1,4 @@
-package com.interchange.platform.service.handler;
+package com.interchange.platform.service.task;
 
 import com.interchange.platform.entity.InterfaceTask;
 import com.interchange.platform.entity.Partner;

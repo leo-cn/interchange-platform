@@ -1,4 +1,4 @@
-package com.interchange.platform.service.handler;
+package com.interchange.platform.service.task;
 
 /**
  * 单次调用第三方的结果，交给 {@link TaskHandler#afterSend} 做后处理。

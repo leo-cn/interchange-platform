@@ -8,7 +8,7 @@ import com.interchange.platform.job.QuartzTaskJob;
 import com.interchange.platform.repository.InterfaceTaskRepository;
 import com.interchange.platform.repository.PartnerRepository;
 import com.interchange.platform.repository.TaskLogRepository;
-import com.interchange.platform.service.handler.TaskHandlerRegistry;
+import com.interchange.platform.service.task.TaskHandlerRegistry;
 import jakarta.persistence.criteria.Predicate;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.JobBuilder;

@@ -33,6 +33,22 @@ public interface ReceiveHandler {
     }
 
     /**
+     * 是否把 {@link #handle} 的返回值<b>直接作为响应体</b>（不再包一层统一响应 {@code R}）。
+     *
+     * <p>默认 false：所有接口统一返回 {@code {code,message,data,traceId,timestamp}}。
+     *
+     * <p>什么时候返回 true：对接方已经有<b>既定报文格式</b>、且不愿意改造，例如 MDM 主数据接收
+     * 接口约定回执是 {@code {"status":"S","message":"...","responseData":[{"mdId":"","status":"S"}]}}。
+     * 这种场景下外面多包一层会让对方解析失败，所以允许处理器自己决定报文形状。
+     *
+     * <p>代价：引擎统一管理的能力里，凡依赖统一响应结构的部分会失效——具体就是
+     * <b>traceId 无法再放进响应体</b>，只能写在接收日志与接口日志里，调用方要靠这两处追溯。
+     */
+    default boolean rawBody() {
+        return false;
+    }
+
+    /**
      * 处理一次接收请求。
      *
      * @param body    报文体原文（GET 请求或空报文时为 null）

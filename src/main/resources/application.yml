@@ -144,6 +144,32 @@ app:
     default-role: OPERATOR         # 自动建档时的角色（ADMIN / OPERATOR / VIEWER）
     allow-biz-password: true       # 允许直接用业务系统口令登录；关掉后只有在本平台改过密码的账号能登
 
+  # ------------------------------------------------------------------------
+  # 主数据接收（MDM）接口。对齐 dyg-erp 的 /rest/mdm/*Receive 五个接口：
+  #   POST /api/receive/mdm-bank-type-receive     银行类别
+  #   POST /api/receive/mdm-bank-branch-receive   银行网点
+  #   POST /api/receive/mdm-org-receive           组织机构
+  #   POST /api/receive/mdm-bank-acc-receive      银行账户
+  #   POST /api/receive/mdm-partner-receive       客商
+  # 本平台不建表，直接写资金系统的基表，所以 datasource 必须是已经存在
+  # SYS_CORP / SYS_EXTERNAL_CORP / BT_BANK_ACC 等表的那个库。
+  # 目标库确认为 MySQL：SQL 已写成跨方言中立形式（无 MERGE / to_char / rownum），
+  # 若为 Oracle 只需换数据源，代码不用动。启动时会做一次缺表/缺列自检，看启动日志。
+  # 接收顺序必须为：银行类别 → 网点 → 组织 → 银行账户 → 客商（后者依赖前者的 mdId）。
+  # ------------------------------------------------------------------------
+  mdm:
+    enabled: ${MDM_ENABLED:false}          # 关掉时五个接口不登记，调用返回「接口未定义」
+    datasource: t6                         # 落库数据源（main 或 app.extra-datasources 里的 key）
+    create-by: admin                       # 落库时的创建人/更新人
+    # 与原系统一致的默认值，一般不用改；换成别的库时按该库的实际基线数据调整
+    net-id: 402880425b8abcfb015b8ac16e980000
+    bank-acc-type: '01'
+    bank-acc-attribute: 4028802f5c0fe799015c10248b1a0029
+    supplier-id: 58F9F65861CF2889E063D900A8C05056
+    inside-branch-only: true               # 只收境内银行网点（INSIDE）
+    lowercase-tables: false                # Linux MySQL 且基表为小写表名时改为 true
+    push-base-url: ${MDM_PUSH_BASE_URL:}   # 推送目标，如 http://192.168.1.10:8080/t2/rest/mdm
+
   # 日志表（task_log / receive_log）的保留策略。
   # 这两张表存的是完整报文，高频任务（例如 30 秒一次）一天能落几千条，库会很快膨胀。
   #   true（默认）= 每个任务 / 每个接口只保留最后一次执行结果，新的覆盖旧的，
@@ -155,7 +181,7 @@ app:
     keep-latest-only: ${LOG_KEEP_LATEST_ONLY:true}
 
   # SQL 取数可用的数据源清单。main = 平台自身库，始终存在。
-  # 需要从业务系统库取数时在下面追加，任务的“数据源”下拉框会自动带出。
+  # 从业务系统库取数时在下面追加，任务的“数据源”下拉框会自动带出。
   extra-datasources:
     - key: t6
       name: t6 业务库(MySQL)

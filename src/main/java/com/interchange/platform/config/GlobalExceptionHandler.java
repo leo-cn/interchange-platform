@@ -1,5 +1,7 @@
-package com.interchange.platform.common;
+package com.interchange.platform.config;
 
+import com.interchange.platform.common.BizException;
+import com.interchange.platform.common.R;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

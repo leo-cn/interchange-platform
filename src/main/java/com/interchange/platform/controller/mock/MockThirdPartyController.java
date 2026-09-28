@@ -1,4 +1,4 @@
-package com.interchange.platform.controller;
+package com.interchange.platform.controller.mock;
 
 import com.interchange.platform.common.R;
 import com.interchange.platform.common.Utils;

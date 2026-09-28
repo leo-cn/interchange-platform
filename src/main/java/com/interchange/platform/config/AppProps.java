@@ -35,6 +35,9 @@ public class AppProps {
     /** 登录账号的来源：平台不建用户表，账号主数据来自业务系统 */
     private User user = new User();
 
+    /** 主数据接收（MDM）接口的落库配置 */
+    private Mdm mdm = new Mdm();
+
     /**
      * 接口日志输出样式。
      *
@@ -105,6 +108,55 @@ public class AppProps {
         private String username;
         private String password;
         private String driver;
+    }
+
+    /**
+     * 主数据接收（MDM）接口配置。
+     *
+     * <p>这套接口落的是资金/ERP 系统的基表（SYS_CORP、SYS_EXTERNAL_CORP、BT_BANK_ACC 等），
+     * 产品不建自己的表，所以库必须是已经存在业务基表的那个库，各项默认值也必须与该库现有数据一致。
+     */
+    @Data
+    public static class Mdm {
+        /** 是否启用 MDM 接收接口（false 时 5 个接口不注册，URL 返回「接口未定义」） */
+        private boolean enabled = false;
+
+        /**
+         * 推送方向的第三方地址前缀，对应 dyg-erp 的 REST 根 {@code http://host:port/{ctx}/rest/mdm}。
+         * 留空则只在平台侧登记接收接口，不建推送示范任务。
+         */
+        private String pushBaseUrl = "";
+
+        /**
+         * 落库数据源 key：取值可以是 {@code main}（平台自身库）
+         * 或 {@code app.extra-datasources} 里配的业务库 key。
+         */
+        private String datasource = "t6";
+
+        /** 落库时的创建人/更新人 */
+        private String createBy = "admin";
+
+        /** 新建单位时写入的 net_id（资金系统基线数据的默认 nets/founder 记录） */
+        private String netId = "402880425b8abcfb015b8ac16e980000";
+
+        /** 新建银行账户时的默认账户类型 */
+        private String bankAccType = "01";
+
+        /** 新建银行账户时的默认账户属性 ID */
+        private String bankAccAttribute = "4028802f5c0fe799015c10248b1a0029";
+
+        /** 新建客商时写入的 supplier_id（主数据平台方） */
+        private String supplierId = "58F9F65861CF2889E063D900A8C05056";
+
+        /** 是否只接收境内银行网点（categoryCode=INSIDE），与 dyg-erp 原逻辑一致 */
+        private boolean insideBranchOnly = true;
+
+        /**
+         * 基表表名用小写。Oracle 下表名不区分大小写，配成什么都一样；
+         * Linux 上的 MySQL 在 lower_case_table_names=0 时表名<b>区分大小写</b>，
+         * 如果这些表当初建成小写，这里要打开。
+         */
+        private boolean lowercaseTables = false;
     }
 
     /**

@@ -1,4 +1,4 @@
-package com.interchange.platform.controller;
+package com.interchange.platform.controller.api;
 
 import com.interchange.platform.common.R;
 import com.interchange.platform.common.TraceId;
@@ -25,17 +25,22 @@ public class ReceiveApiController {
         this.receiveService = receiveService;
     }
 
+    /**
+     * 返回 Object 而不是统一响应 R：
+     * 处理器声明 {@code rawBody()} 时（如 MDM 主数据接收），响应体就是它自己返回的 Map，
+     * 不再包一层 {@code {code,message,data}}，以便与第三方既定报文格式保持一致。
+     */
     @PostMapping("/{apiCode}")
-    public R<Map<String, Object>> receivePost(@PathVariable("apiCode") String apiCode,
-                                              @RequestBody(required = false) String body,
-                                              HttpServletRequest request) {
+    public Object receivePost(@PathVariable("apiCode") String apiCode,
+                              @RequestBody(required = false) String body,
+                              HttpServletRequest request) {
         return receiveService.handle(apiCode, "POST", headersToJson(request),
                 extractToken(request), body, clientIp(request));
     }
 
     @GetMapping("/{apiCode}")
-    public R<Map<String, Object>> receiveGet(@PathVariable("apiCode") String apiCode,
-                                             HttpServletRequest request) {
+    public Object receiveGet(@PathVariable("apiCode") String apiCode,
+                             HttpServletRequest request) {
         return receiveService.handle(apiCode, "GET", headersToJson(request),
                 extractToken(request), null, clientIp(request));
     }
