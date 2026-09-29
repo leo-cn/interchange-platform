@@ -44,9 +44,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 推送引擎：一次任务执行的完整链路。
  *
- * <pre>
- *   取数(DataFetcher) → 组装报文 → 调用第三方(带认证/超时，失败不重试) → 落执行日志 → 回写任务执行状态
- * </pre>
  */
 @Service
 public class PushService {
@@ -345,10 +342,6 @@ public class PushService {
 
     /**
      * 调用第三方：**只调一次，失败不重试**。
-     *
-     * <p>重试机制已移除：接口交换场景下失败基本都是配置/网络问题，重试只会让一次执行
-     * 拖满几十秒（曾经 OaUserTask 每 30 秒跑一次、每次再重试两轮，日志全是无效重试），
-     * 而且重复推送容易造成第三方重复入库。失败就如实记为 FAIL，由下一次调度重新推送。
      */
     private PushOutcome callOnce(TaskContext ctx, Task handler, String body, TaskLog taskLog) {
         InterfaceTask task = ctx.getTask();
