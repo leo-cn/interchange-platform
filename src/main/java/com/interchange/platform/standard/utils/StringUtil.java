@@ -4,7 +4,6 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -255,18 +254,6 @@ public class StringUtil {
         }
         String msg = e.getMessage();
         return isBlank(msg) ? e.getClass().getSimpleName() : msg;
-    }
-
-    /** 过滤空值并去重，用于批量 IN 查询 */
-    public static List<String> clean(java.util.Collection<String> values) {
-        if (values == null || values.isEmpty()) {
-            return List.of();
-        }
-        return values.stream()
-                .filter(Objects::nonNull)
-                .filter(StringUtil::isNotBlank)
-                .distinct()
-                .toList();
     }
 
     /** 相等比较，null 安全 */

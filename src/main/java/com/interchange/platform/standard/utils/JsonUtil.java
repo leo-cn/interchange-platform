@@ -140,6 +140,22 @@ public class JsonUtil {
     }
 
     /**
+     * JSON 对象解析成「字段名 → 字符串值」的 Map，取值统一转成字符串（null 保持 null）。
+     * 文本为空、不是对象结构、或解析失败时返回 null —— 判定规则与 {@link #toMap} 一致。
+     *
+     * <p>用于入参就是一整段 JSON、字段值全是字符串语义的接口（如标准查询接口）。
+     */
+    public static Map<String, String> toStringMap(String text) {
+        Map<String, Object> raw = toMap(text);
+        if (raw == null) {
+            return null;
+        }
+        Map<String, String> map = new LinkedHashMap<>();
+        raw.forEach((k, v) -> map.put(k, v == null ? null : String.valueOf(v)));
+        return map;
+    }
+
+    /**
      * JSON 解析成 JsonNode，解析不了时原样返回文本。
      *
      * <p>用于把多个报文拼成数组时保持结构化：逐条推送时若把各条报文当字符串塞进数组，

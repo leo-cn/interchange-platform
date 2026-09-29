@@ -1,8 +1,8 @@
 package com.interchange.platform.dyg.entity;
 
+import com.interchange.platform.standard.core.base.IdEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -14,11 +14,7 @@ import lombok.Data;
 @Data
 @Entity
 @Table(name = "BT_CURRENCY")
-public class BtCurrency {
-
-    @Id
-    @Column(name = "ID", length = 32)
-    private String id;
+public class BtCurrency extends IdEntity {
 
     @Column(name = "ENGLISH_CODE", length = 20)
     private String englishCode;

@@ -138,7 +138,7 @@ public class InterfaceLogService {
      * @param message 人话描述
      * @param extra   附加字段（total、index、status、costMs、request、response 等），可为 null
      */
-    public void stage(String direction, String iface, String ifaceName, String traceId,
+    public void write(String direction, String iface, String ifaceName, String traceId,
                       String stage, String message, Map<String, Object> extra) {
         // 过程日志固定打印，没有开关：排查故障时它就是唯一依据，不能出现"没开所以没有"
         // 纯文本模式不需要拼 JSON，直接出一行（默认样式）

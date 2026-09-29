@@ -1,8 +1,8 @@
 package com.interchange.platform.dyg.entity;
 
+import com.interchange.platform.standard.core.base.IdEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -14,11 +14,7 @@ import lombok.Data;
 @Data
 @Entity
 @Table(name = "SYS_EXTERNAL_CORP_BANKACC")
-public class SysExternalCorpBankacc {
-
-    @Id
-    @Column(name = "ID", length = 32)
-    private String id;
+public class SysExternalCorpBankacc extends IdEntity {
 
     @Column(name = "EXTERNAL_CORP_ID", length = 32)
     private String externalCorpId;

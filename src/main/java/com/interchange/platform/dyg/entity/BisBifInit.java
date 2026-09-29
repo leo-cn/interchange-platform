@@ -1,8 +1,8 @@
 package com.interchange.platform.dyg.entity;
 
+import com.interchange.platform.standard.core.base.IdEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -16,11 +16,7 @@ import java.util.Date;
 @Data
 @Entity
 @Table(name = "BIS_BIF_INIT")
-public class BisBifInit {
-
-    @Id
-    @Column(name = "ID", length = 32)
-    private String id;
+public class BisBifInit extends IdEntity {
 
     @Column(name = "BIF_CODE", length = 50)
     private String bifCode;

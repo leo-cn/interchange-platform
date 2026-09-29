@@ -1,8 +1,8 @@
 package com.interchange.platform.dyg.entity;
 
+import com.interchange.platform.standard.core.base.IdEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -17,11 +17,7 @@ import java.util.Date;
 @Data
 @Entity
 @Table(name = "BT_ACC_NATURE")
-public class BtAccNature {
-
-    @Id
-    @Column(name = "ID", length = 32)
-    private String id;
+public class BtAccNature extends IdEntity {
 
     @Column(name = "NATURE_CODE", length = 30)
     private String natureCode;

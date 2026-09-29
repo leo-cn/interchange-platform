@@ -17,9 +17,7 @@ import com.interchange.platform.standard.sys.entity.InterfaceTask;
 import com.interchange.platform.standard.sys.entity.Partner;
 import com.interchange.platform.standard.sys.entity.TaskLog;
 import com.interchange.platform.standard.sys.dao.InterfaceTaskDao;
-import com.interchange.platform.standard.utils.JsonUtil;
 import com.interchange.platform.standard.sys.dao.PartnerDao;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -137,7 +135,7 @@ public class PushService {
             if (handler != null) {
                 startExtra.put("handler", task.getHandlerBean());
             }
-            interfaceLogService.stage("PUSH", code, name, traceId, "START",
+            interfaceLogService.write("PUSH", code, name, traceId, "START",
                     beginPrefix + code + (name == null ? "" : "（" + name + "）"),
                     startExtra.isEmpty() ? null : startExtra);
 
@@ -169,7 +167,7 @@ public class PushService {
                 fetchedMsg = "未查询到待发送的数据";
             }
             log.info("任务[{}] {}", code, fetchedMsg);
-            interfaceLogService.stage("PUSH", code, name, traceId, "FETCHED", fetchedMsg, fetchedExtra);
+            interfaceLogService.write("PUSH", code, name, traceId, "FETCHED", fetchedMsg, fetchedExtra);
 
             // 2) 推送
             if ("PER_ROW".equalsIgnoreCase(task.getPushMode())) {
@@ -204,7 +202,7 @@ public class PushService {
             endExtra.put("success", saved.getSuccessCount());
             endExtra.put("fail", saved.getFailCount());
             endExtra.put("targetUrl", saved.getTargetUrl());
-            interfaceLogService.stage("PUSH", task.getTaskCode(), task.getTaskName(), saved.getTraceId(), "END",
+            interfaceLogService.write("PUSH", task.getTaskCode(), task.getTaskName(), saved.getTraceId(), "END",
                     endPrefix + statusText(saved.getStatus()) + "，共 " + saved.getTotalCount()
                             + " 条，成功 " + saved.getSuccessCount()
                             + " 条，失败 " + saved.getFailCount() + " 条，耗时 " + cost + "ms", endExtra);
@@ -232,7 +230,7 @@ public class PushService {
         sendExtra.put("total", total);
         sendExtra.put("targetUrl", targetUrl);
         sendExtra.put("request", interfaceLogService.payload(body));
-        interfaceLogService.stage("PUSH", task.getTaskCode(), task.getTaskName(), taskLog.getTraceId(),
+        interfaceLogService.write("PUSH", task.getTaskCode(), task.getTaskName(), taskLog.getTraceId(),
                 "SEND_START", "开始推送 " + total + " 条数据（整批）", sendExtra);
 
         long sendStart = System.currentTimeMillis();
@@ -250,7 +248,7 @@ public class PushService {
             sendEndExtra.put("errorMsg", outcome.errorMsg);
         }
         // 注意：成功/失败不在主文案里说，由日志的「执行结果」行在响应报文之后给出
-        interfaceLogService.stage("PUSH", task.getTaskCode(), task.getTaskName(), taskLog.getTraceId(),
+        interfaceLogService.write("PUSH", task.getTaskCode(), task.getTaskName(), taskLog.getTraceId(),
                 "SEND_END", "整批推送结束，耗时 " + sendCost + "ms", sendEndExtra);
 
         if (outcome.success) {
@@ -296,7 +294,7 @@ public class PushService {
             startExtra.put("index", index);
             startExtra.put("total", rows.size());
             startExtra.put("request", interfaceLogService.payload(body));
-            interfaceLogService.stage("PUSH", task.getTaskCode(), task.getTaskName(), taskLog.getTraceId(),
+            interfaceLogService.write("PUSH", task.getTaskCode(), task.getTaskName(), taskLog.getTraceId(),
                     "SEND_START", "开始推送第 " + index + "/" + rows.size() + " 条数据", startExtra);
 
             long sendStart = System.currentTimeMillis();
@@ -316,7 +314,7 @@ public class PushService {
                 endExtra.put("errorMsg", outcome.errorMsg);
             }
             // 成功/失败同样交给日志的「执行结果」行（排在响应报文之后）
-            interfaceLogService.stage("PUSH", task.getTaskCode(), task.getTaskName(), taskLog.getTraceId(),
+            interfaceLogService.write("PUSH", task.getTaskCode(), task.getTaskName(), taskLog.getTraceId(),
                     "SEND_END", "第 " + index + " 条推送结束，耗时 " + sendCost + "ms", endExtra);
 
             if (outcome.success) {
@@ -434,7 +432,7 @@ public class PushService {
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("errorMsg", reason);
         InterfaceLogService.putIf(extra, "targetUrl", targetUrl);
-        interfaceLogService.stage("PUSH", task.getTaskCode(), task.getTaskName(),
+        interfaceLogService.write("PUSH", task.getTaskCode(), task.getTaskName(),
                 taskLog.getTraceId(), "CALL_FAIL", msg, extra);
     }
 

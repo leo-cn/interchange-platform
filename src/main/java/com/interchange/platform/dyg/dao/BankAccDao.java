@@ -2,11 +2,12 @@ package com.interchange.platform.dyg.dao;
 
 import com.interchange.platform.dyg.entity.BtBankAcc;
 import com.interchange.platform.dyg.entity.BtBankAccCur;
+import com.interchange.platform.dyg.vo.StandardBankAccVO;
 import com.interchange.platform.standard.core.base.BaseDao;
+import com.interchange.platform.standard.utils.StringUtil;
 import org.springframework.stereotype.Repository;
 
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,20 +21,6 @@ import java.util.Optional;
  */
 @Repository
 public class BankAccDao extends BaseDao {
-
-    /** 按 mdId 批量预加载：mdId → 账户 */
-    public Map<String, BtBankAcc> mapByMdId(Collection<String> mdIds) {
-        List<String> ids = clean(mdIds);
-        Map<String, BtBankAcc> map = new HashMap<>();
-        if (ids.isEmpty()) {
-            return map;
-        }
-        List<BtBankAcc> rows = listBy("from BtBankAcc where mdId in (:ids)", Map.of("ids", ids));
-        for (BtBankAcc acc : rows) {
-            map.put(acc.getMdId(), acc);
-        }
-        return map;
-    }
 
     /** 按 mdId 查账户 */
     public Optional<BtBankAcc> findByMdId(String mdId) {
@@ -59,5 +46,42 @@ public class BankAccDao extends BaseDao {
         row.setBankAccId(bankAccId);
         row.setCurId(curId);
         save(row);
+    }
+
+    /* ---------- 标准接口：银行账号查询 ---------- */
+
+    /**
+     * 标准接口「银行账号查询」：bankAcc / corpCode 精确、accName / corpName 模糊、
+     * updateDate 大于等于；空条件跳过。
+     * 取视图 {@code standard_bankacc_view}，SQL 别名与 {@link StandardBankAccVO} 字段名一致。
+     */
+    public List<StandardBankAccVO> listStandardBankAcc(String bankAcc, String accName, String corpCode,
+                                                         String corpName, String updateDate) {
+        StringBuilder sql = new StringBuilder(
+                "select id, bankAcc, accName, corpCode, corpName, curCode, curName,"
+                        + " bankCode, bankName, isOnline, validSign, updateDate"
+                        + " from standard_bankacc_view where 1=1");
+        Map<String, Object> args = new LinkedHashMap<>();
+        if (StringUtil.isNotBlank(bankAcc)) {
+            sql.append(" and bankAcc = :bankAcc");
+            args.put("bankAcc", bankAcc.trim());
+        }
+        if (StringUtil.isNotBlank(accName)) {
+            sql.append(" and accName like :accName");
+            args.put("accName", "%" + accName.trim() + "%");
+        }
+        if (StringUtil.isNotBlank(corpCode)) {
+            sql.append(" and corpCode = :corpCode");
+            args.put("corpCode", corpCode.trim());
+        }
+        if (StringUtil.isNotBlank(corpName)) {
+            sql.append(" and corpName like :corpName");
+            args.put("corpName", "%" + corpName.trim() + "%");
+        }
+        if (StringUtil.isNotBlank(updateDate)) {
+            sql.append(" and updateDate >= :updateDate");
+            args.put("updateDate", updateDate.trim());
+        }
+        return listBySQLAliasToBean(sql.toString(), args, StandardBankAccVO.class);
     }
 }

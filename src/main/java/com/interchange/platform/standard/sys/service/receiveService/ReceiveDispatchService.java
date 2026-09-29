@@ -1,6 +1,7 @@
 package com.interchange.platform.standard.sys.service.receiveService;
 
 import com.interchange.platform.standard.anotation.ReceiveApi;
+import com.interchange.platform.standard.exception.BizException;
 import com.interchange.platform.standard.exception.BusinessException;
 
 import com.interchange.platform.standard.sys.service.BizUserService;
@@ -31,8 +32,6 @@ import java.util.Map;
 
 /**
  * 接收侧调度服务：处理第三方系统调用本平台的接口（鉴权 + 路由到具体业务处理器 + 落日志）。
- *
- * <p>注意与 {@link ReceiveService} 的区别：后者是单个接口的业务处理器挂靠点（SPI），
  * 本类是分发它们的引擎，两者不是接口与实现的关系。
  */
 @Service
@@ -121,14 +120,14 @@ public class ReceiveDispatchService {
             recvExtra.put("remoteIp", remoteIp);
             recvExtra.put("bodyLength", body == null ? 0 : body.length());
             recvExtra.put("request", interfaceLogService.payload(body));
-            interfaceLogService.stage("RECEIVE", apiCode, null, traceId, "RECEIVED",
+            interfaceLogService.write("RECEIVE", apiCode, null, traceId, "RECEIVED",
                     "收到第三方请求 " + method + "（来自 " + remoteIp + "，报文长度 " + length + "）", recvExtra);
 
             // 0) 接口必须先在「接收接口」页登记过。
             // 以前没这道卡口：任何 apiCode 都能进来，没有对应业务分支时被 handleBusiness 的
             // 兜底逻辑原样回执成"接收成功"，联调时会误以为接口已经打通。现在直接拒绝。
             ReceiveApiService.Def apiDef = receiveApiService.findEnabled(apiCode)
-                    .orElseThrow(() -> new ReceiveException(401,
+                    .orElseThrow(() -> new BizException(401,
                             "接口未定义或已停用：" + apiCode + "（请先在「接收接口」页登记）"));
 
             // 1) 鉴权（免鉴权接口跳过，调用方记成 NO-AUTH）
@@ -143,12 +142,12 @@ public class ReceiveDispatchService {
             response.setTraceId(traceId);
             entity.setStatus("SUCCESS");
             entity.setResponseBody(Utils.truncate(Utils.toJson(response), 200000));
-            interfaceLogService.stage("RECEIVE", apiCode, null, traceId, "RESPONDED",
+            interfaceLogService.write("RECEIVE", apiCode, null, traceId, "RESPONDED",
                     "处理完成并已响应（耗时 " + (System.currentTimeMillis() - start) + "ms）", null);
             return response;
 
-        } catch (ReceiveException e) {
-            ResultDTO<Map<String, Object>> response = ResultDTO.fail(e.getHttpStatus(), e.getMessage());
+        } catch (BizException e) {
+            ResultDTO<Map<String, Object>> response = ResultDTO.fail(e.getCode(), e.getMessage());
             response.setTraceId(traceId);
             entity.setStatus("FAIL");
             entity.setErrorMsg(e.getMessage());
@@ -179,7 +178,7 @@ public class ReceiveDispatchService {
             // 成败写进主文案，不再追加「执行结果」「结束报文」——重复信息只会把日志撑厚。
             Map<String, Object> endExtra = new LinkedHashMap<>();
             endExtra.put("costMs", cost);
-            interfaceLogService.stage("RECEIVE", apiCode, null, traceId, "END",
+            interfaceLogService.write("RECEIVE", apiCode, null, traceId, "END",
                     "本次接收处理结束：" + statusText(entity.getStatus()) + "（耗时 " + cost + "ms）", endExtra);
         }
     }
@@ -204,7 +203,7 @@ public class ReceiveDispatchService {
      */
     private String authenticate(String apiCode, String token) {
         if (token == null || token.isBlank()) {
-            throw new ReceiveException(401, "缺少访问令牌（请在请求头 X-Token 中携带）");
+            throw new BizException(401, "缺少访问令牌（请在请求头 X-Token 中携带）");
         }
         String t = token.trim();
         if (t.startsWith("Bearer ")) {
@@ -218,19 +217,19 @@ public class ReceiveDispatchService {
         ServerTokenService.Ticket ticket = serverTokenService.verify(t);
         if (ticket != null) {
             if (!ticket.allows(apiCode)) {
-                throw new ReceiveException(401, "访问令牌无效（该令牌无权调用接口 " + apiCode + "）");
+                throw new BizException(401, "访问令牌无效（该令牌无权调用接口 " + apiCode + "）");
             }
             return "TOKEN:" + ticket.getName();
         }
         // 令牌挂在平台扩展表上，账号本身在业务系统：两边都得是启用状态才算有效
         SysUserExt ext = userExtDao.findByApiToken(t).orElse(null);
         if (ext == null || ext.getStatus() == null || ext.getStatus() != 1) {
-            throw new ReceiveException(401, "访问令牌无效");
+            throw new BizException(401, "访问令牌无效");
         }
         BizUserService.BizUser biz = directory.findById(ext.getExtId())
-                .orElseThrow(() -> new ReceiveException(401, "访问令牌无效"));
+                .orElseThrow(() -> new BizException(401, "访问令牌无效"));
         if (!directory.isActive(biz)) {
-            throw new ReceiveException(401, "访问令牌无效（该账号在业务系统中已停用）");
+            throw new BizException(401, "访问令牌无效（该账号在业务系统中已停用）");
         }
         return biz.loginName();
     }
@@ -253,7 +252,7 @@ public class ReceiveDispatchService {
                 return data;
             } catch (BusinessException e) {
                 // 业务失败原样透传状态码（400 参数错误等），响应文案与日志由外层统一处理
-                throw new ReceiveException(e.getHttpStatus(), e.getMessage());
+                throw new BizException(e.getHttpStatus(), e.getMessage());
             }
         }
 
@@ -297,19 +296,5 @@ public class ReceiveDispatchService {
             // headers JSON 是引擎自己生成的，理论上不会解析失败；失败也不阻断业务
         }
         return map;
-    }
-
-    /** 接收侧业务异常，携带 HTTP 状态语义 */
-    public static class ReceiveException extends RuntimeException {
-        private final int httpStatus;
-
-        public ReceiveException(int httpStatus, String message) {
-            super(message);
-            this.httpStatus = httpStatus;
-        }
-
-        public int getHttpStatus() {
-            return httpStatus;
-        }
     }
 }

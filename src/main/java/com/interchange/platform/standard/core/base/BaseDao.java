@@ -7,7 +7,9 @@ import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.Collection;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -146,6 +148,28 @@ public class BaseDao {
         return raw.stream().map(BaseDao::toRow).toList();
     }
 
+    /** 原生查询（命名参数）返回 Map，列名统一小写 */
+    public List<Map<String, Object>> nativeRows(String sql, Map<String, ?> params) {
+        List<Object> raw = bindNamed(session().createNativeQuery(sql), params).list();
+        return raw.stream().map(BaseDao::toRow).toList();
+    }
+
+    /**
+     * 原生 SQL 查询并转成 VO：SQL 里给每列起别名，别名与 VO 属性名一致
+     * （大小写不敏感：Oracle 返回大写、MySQL 原样，都能对上）。
+     *
+     * <p>写法参照 dyg-erp 的 {@code DygBaseDao.listBySQLAliasToBean}：
+     * 先把结果取成「别名 → 值」的 Map，再按属性名拷进 Bean。
+     */
+    public <B> List<B> listBySQLAliasToBean(String sql, Map<String, ?> params, Class<B> clazz) {
+        List<Map<String, Object>> rows = nativeRows(sql, params);
+        List<B> list = new ArrayList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            list.add(toBean(row, clazz));
+        }
+        return list;
+    }
+
     /** 原生增删改，返回影响行数（需在事务内） */
     public int nativeUpdate(String sql, Object... args) {
         return bind(session().createNativeQuery(sql), args).executeUpdate();
@@ -208,11 +232,51 @@ public class BaseDao {
         return String.join(",", java.util.Collections.nCopies(n, "?"));
     }
 
-    /** 过滤空值并去重（批量 IN 用） */
-    public static List<String> clean(Collection<String> values) {
-        if (values == null) {
-            return List.of();
+    /**
+     * Map 行（列名已转小写）→ VO：按属性名把值 set 进去。
+     * SQL 里有、VO 里没有的列直接忽略；单个字段类型对不上也跳过，不阻断整条查询。
+     */
+    private static <B> B toBean(Map<String, Object> row, Class<B> clazz) {
+        B bean;
+        try {
+            bean = clazz.getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new BizException(500, "结果类没有无参构造，无法转换: " + clazz.getName());
         }
-        return values.stream().filter(v -> v != null && !v.isBlank()).distinct().toList();
+        for (Field f : clazz.getDeclaredFields()) {
+            if (Modifier.isStatic(f.getModifiers())) {
+                continue;
+            }
+            Object value = row.get(f.getName().toLowerCase());
+            if (value == null) {
+                continue;
+            }
+            try {
+                f.setAccessible(true);
+                f.set(bean, convertValue(value, f.getType()));
+            } catch (Exception ignored) {
+                // 单个字段转不了就留空
+            }
+        }
+        return bean;
+    }
+
+    /** 宽松取值转换：字符串目标统一 String.valueOf，数字目标按 Number 转 */
+    private static Object convertValue(Object value, Class<?> type) {
+        if (type.isInstance(value)) {
+            return value;
+        }
+        if (type == String.class) {
+            return String.valueOf(value);
+        }
+        if (value instanceof Number n) {
+            if (type == int.class || type == Integer.class) {
+                return n.intValue();
+            }
+            if (type == long.class || type == Long.class) {
+                return n.longValue();
+            }
+        }
+        return value;
     }
 }
