@@ -116,26 +116,26 @@
             return;
         }
         const r = await postForm('/api/profile/password', {oldPassword: oldPass, newPassword: newPass});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.href = '/logout', 1200);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.href = '/logout', 1200);
     }
 
     async function resetToken() {
         if (!confirm('重置后旧令牌立即失效，确认继续？')) return;
         const r = await postForm('/api/profile/token', {});
-        if (r.code === 0) {
+        if (r.resultCode === '0') {
             document.getElementById('apiTokenText').textContent = r.data;
             toast('令牌已重置', 'success');
         } else {
-            toast(r.message, 'error');
+            toast(r.resultMessage, 'error');
         }
     }
 
     async function loadEnvInfo() {
         const box = document.getElementById('envInfo');
         const r = await getJson('/api/system/info');
-        if (r.code !== 0) {
-            box.innerHTML = '<span class="badge badge-fail">' + escapeHtml(r.message) + '</span>';
+        if (r.resultCode !== '0') {
+            box.innerHTML = '<span class="badge badge-fail">' + escapeHtml(r.resultMessage) + '</span>';
             return;
         }
         const d = r.data;

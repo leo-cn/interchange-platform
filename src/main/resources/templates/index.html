@@ -161,7 +161,7 @@
             return;
         }
         const r = await postForm('/api/task/run', {id: id});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
     }
 </script>
 </body>

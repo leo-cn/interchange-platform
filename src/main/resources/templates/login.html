@@ -82,11 +82,11 @@
                 body: body
             });
             const r = await resp.json();
-            if (r.code === 0) {
+            if (r.resultCode === '0') {
                 const redirect = document.getElementById('redirect').value;
                 location.href = redirect && redirect !== 'null' ? redirect : '/';
             } else {
-                errBox.textContent = r.message || '登录失败，请重试';
+                errBox.textContent = r.resultMessage || '登录失败，请重试';
             }
         } catch (err) {
             errBox.textContent = '登录请求失败，请检查服务是否正常';

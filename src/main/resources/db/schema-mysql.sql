@@ -9,12 +9,12 @@
 
 -- 平台侧用户扩展属性。
 -- 平台不建自己的用户表：账号主数据（登录名 / 姓名 / 口令 / 启停）在业务系统用户表
--- （默认 t6.sys_user，见 app.user.datasource / app.user.table），本表按 ext_id 挂在
+-- （默认 sys_user，见 app.user.datasource / app.user.table），本表按 ext_id 挂在
 -- 业务用户主键上，只存平台专有的角色 / 令牌 / 平台口令。
 CREATE TABLE IF NOT EXISTS sys_user_ext
 (
     id                BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
-    ext_id            VARCHAR(64)  NOT NULL COMMENT '业务系统用户主键（t6.sys_user.ID）',
+    ext_id            VARCHAR(64)  NOT NULL COMMENT '业务系统用户主键（sys_user.ID）',
     role              VARCHAR(32) COMMENT 'ADMIN/OPERATOR/VIEWER',
     status            INT DEFAULT 1 COMMENT '平台侧 1 启用 0 停用（不回写业务系统）',
     api_token         VARCHAR(128) COMMENT '接收接口调用令牌',
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS interface_task
     content_type       VARCHAR(128) DEFAULT 'application/json;charset=UTF-8',
     push_mode          VARCHAR(16) DEFAULT 'BATCH' COMMENT 'BATCH 整批 / PER_ROW 逐条',
     headers_json       VARCHAR(4000) COMMENT '附加请求头 JSON',
-    handler_bean       VARCHAR(64) COMMENT '自定义处理器 TaskHandler.code，留空走默认推送逻辑',
+    handler_bean       VARCHAR(64) COMMENT '自定义任务 Task.code，留空走默认推送逻辑',
     cron_expression    VARCHAR(64) COMMENT 'Cron 表达式',
     timeout_ms         INT DEFAULT 15000,
     enabled            TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',

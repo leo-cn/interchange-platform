@@ -114,8 +114,8 @@ function escapeHtml(text) {
 /** 弹出日志详情 */
 async function showTaskLogDetail(id) {
     const r = await getJson('/api/log/' + id);
-    if (r.code !== 0) {
-        toast(r.message, 'error');
+    if (r.resultCode !== '0') {
+        toast(r.resultMessage, 'error');
         return;
     }
     const d = r.data;
@@ -142,8 +142,8 @@ async function showTaskLogDetail(id) {
 /** 弹出接收日志详情 */
 async function showReceiveLogDetail(id) {
     const r = await getJson('/api/receive-log/' + id);
-    if (r.code !== 0) {
-        toast(r.message, 'error');
+    if (r.resultCode !== '0') {
+        toast(r.resultMessage, 'error');
         return;
     }
     const d = r.data;
@@ -217,9 +217,9 @@ async function loadTracePayload(iface, traceId, date) {
             url += '&date=' + encodeURIComponent(date);
         }
         const r = await getJson(url);
-        if (r.code !== 0) {
-            if (box) box.innerHTML = '<div class="section-title">接口日志</div><pre class="code">' + escapeHtml(r.message) + '</pre>';
-            toast(r.message, 'error');
+        if (r.resultCode !== '0') {
+            if (box) box.innerHTML = '<div class="section-title">接口日志</div><pre class="code">' + escapeHtml(r.resultMessage) + '</pre>';
+            toast(r.resultMessage, 'error');
             return;
         }
         const d = r.data || {};

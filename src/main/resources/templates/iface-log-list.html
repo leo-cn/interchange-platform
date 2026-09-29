@@ -174,8 +174,8 @@
         }
         try {
             const r = await postForm('/api/iface-log/clear', {file: file});
-            toast(r.message || '已清空', r.code === 0 ? 'success' : 'error');
-            if (r.code === 0) await loadFiles();
+            toast(r.resultMessage || '已清空', r.resultCode === '0' ? 'success' : 'error');
+            if (r.resultCode === '0') await loadFiles();
         } catch (e) {
             toast(e && e.message ? e.message : '清空失败', 'error');
         }
@@ -227,9 +227,9 @@
         panel.innerHTML = '<div class="text-sub">正在查找…</div>';
         try {
             const r = await getJson(url);
-            if (r.code !== 0) {
-                panel.innerHTML = '<pre class="code">' + escapeHtml(r.message) + '</pre>';
-                toast(r.message, 'error');
+            if (r.resultCode !== '0') {
+                panel.innerHTML = '<pre class="code">' + escapeHtml(r.resultMessage) + '</pre>';
+                toast(r.resultMessage, 'error');
                 return;
             }
             const d = r.data || {};

@@ -163,7 +163,7 @@
         let data = {};
         if (id) {
             const r = await getJson('/api/token/detail/' + id);
-            if (r.code !== 0) return toast(r.message, 'error');
+            if (r.resultCode !== '0') return toast(r.resultMessage, 'error');
             data = r.data;
         }
         openModal(id ? '编辑接入方' : '新增接入方', formHtml(data));
@@ -197,7 +197,7 @@
         const picked = String(selected || '').split(',').map(s => s.trim().toLowerCase())
             .filter(s => s.length > 0);
         const r = await getJson('/api/receive-api/list');
-        const list = (r.code === 0 && r.data && r.data.apis) ? r.data.apis : [];
+        const list = (r.resultCode === '0' && r.data && r.data.apis) ? r.data.apis : [];
         if (!list.length) {
             box.innerHTML = '<div>「接收接口」页还没有登记任何接口，保存后即为「不限制」。</div>';
             all.checked = true;
@@ -260,8 +260,8 @@
         }
         if (!payload.allowApiCodes && !confirm('「可调用接口」= 不限制：该凭证换出的令牌可以调用平台上所有已登记接口。确认？')) return;
         const r = await postJson('/api/token/save', payload);
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) {
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') {
             closeModal();
             setTimeout(() => location.reload(), 700);
         }
@@ -270,7 +270,7 @@
     /** 换票：拿这个接入方的凭证换一个 access_token */
     async function issueToken(id) {
         const r = await postForm('/api/token/issue', {id: id});
-        if (r.code !== 0) return toast(r.message, 'error');
+        if (r.resultCode !== '0') return toast(r.resultMessage, 'error');
         const d = r.data;
         openModal('已签发令牌', '<div class="field full"><label>access_token</label>'
             + '<input type="text" id="at_value" class="mono" readonly value="' + escapeHtml(d.access_token) + '"></div>'
@@ -284,29 +284,29 @@
 
     async function toggleToken(id, enabled) {
         const r = await postForm('/api/token/toggle', {id: id, enabled: enabled});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 
     async function resetSecret(id, name) {
         if (!confirm('确认重置【' + name + '】的密钥？该接入方已签发的令牌会全部失效，需要通知对方用新密钥重新换票。')) return;
         const r = await postForm('/api/token/reset-secret', {id: id});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 
     async function deleteToken(id, name) {
         if (!confirm('确认删除【' + name + '】？')) return;
         const r = await postForm('/api/token/delete', {id: id});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 
     async function loadActiveTokens() {
         const r = await getJson('/api/token/active');
         const body = document.getElementById('activeBody');
         if (!body) return;
-        if (r.code !== 0 || !r.data || !r.data.tokens) {
+        if (r.resultCode !== '0' || !r.data || !r.data.tokens) {
             body.innerHTML = '<tr><td colspan="5" class="empty">加载失败</td></tr>';
             return;
         }
@@ -328,8 +328,8 @@
     async function revokeToken(token) {
         if (!confirm('确认注销这个令牌？对方需要重新换票。')) return;
         const r = await postForm('/api/oauth/revoke', {access_token: token});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) loadActiveTokens();
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') loadActiveTokens();
     }
 
     async function copyToken(value) {

@@ -124,7 +124,7 @@
         let data = {};
         if (id) {
             const r = await getJson('/api/receive-api/detail/' + id);
-            if (r.code !== 0) return toast(r.message, 'error');
+            if (r.resultCode !== '0') return toast(r.resultMessage, 'error');
             data = r.data;
         }
         openModal(id ? '编辑接口' : '新增接口', formHtml(data));
@@ -151,8 +151,8 @@
         if (!payload.apiCode || !payload.apiCode.trim()) return toast('请填写接口编码', 'error');
         if (!payload.name || !payload.name.trim()) return toast('请填写接口名称', 'error');
         const r = await postJson('/api/receive-api/save', payload);
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) {
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') {
             closeModal();
             setTimeout(() => location.reload(), 700);
         }
@@ -161,15 +161,15 @@
     async function toggleApi(id, enabled, code) {
         if (!enabled && !confirm('停用【' + code + '】后，第三方调用会立刻失败。确认停用？')) return;
         const r = await postForm('/api/receive-api/toggle', {id: id, enabled: enabled});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 
     async function deleteApi(id, code) {
         if (!confirm('确认删除【' + code + '】？删除后第三方调用会被拒绝，直到重新登记。')) return;
         const r = await postForm('/api/receive-api/delete', {id: id});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 </script>
 </body>

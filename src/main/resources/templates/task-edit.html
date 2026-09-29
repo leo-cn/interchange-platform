@@ -274,12 +274,12 @@
             return;
         }
         const r = await postJson('/api/task/save', data);
-        if (r.code === 0) {
+        if (r.resultCode === '0') {
             toast('保存成功', 'success');
             document.getElementById('saveTip').textContent = '已保存，2 秒后返回列表…';
             setTimeout(() => location.href = '/task/list', 900);
         } else {
-            toast(r.message, 'error');
+            toast(r.resultMessage, 'error');
         }
     }
 
@@ -287,8 +287,8 @@
         const cron = document.getElementById('cronExpression').value;
         const r = await postForm('/api/task/cron-preview', {cron: cron});
         const box = document.getElementById('cronPreview');
-        if (r.code !== 0) {
-            box.innerHTML = '<span class="badge badge-fail">' + escapeHtml(r.message) + '</span>';
+        if (r.resultCode !== '0') {
+            box.innerHTML = '<span class="badge badge-fail">' + escapeHtml(r.resultMessage) + '</span>';
             return;
         }
         if (!r.data.valid) {
@@ -305,9 +305,9 @@
         const data = collect();
         openModal('数据预览（最多 20 条）', '<div class="text-sub">正在取数…</div>');
         const r = await postJson('/api/task/preview?limit=20', data);
-        if (r.code !== 0) {
+        if (r.resultCode !== '0') {
             document.getElementById('modalBody').innerHTML =
-                '<span class="badge badge-fail">' + escapeHtml(r.message) + '</span>';
+                '<span class="badge badge-fail">' + escapeHtml(r.resultMessage) + '</span>';
             return;
         }
         const d = r.data;

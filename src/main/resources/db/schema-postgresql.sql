@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS sys_user_ext (
     CONSTRAINT uk_user_ext_ext_id UNIQUE (ext_id)
 );
 COMMENT ON TABLE sys_user_ext IS '平台用户扩展属性';
-COMMENT ON COLUMN sys_user_ext.ext_id IS '业务系统用户主键（t6.sys_user.ID）';
+COMMENT ON COLUMN sys_user_ext.ext_id IS '业务系统用户主键（sys_user.ID）';
 COMMENT ON COLUMN sys_user_ext.api_token IS '接收接口调用令牌';
 
 -- 接入方凭证：appKey / appSecret 用来换 access_token（令牌本身只在缓存里）

@@ -143,20 +143,20 @@
     async function runTask(id) {
         if (!confirm('确认立即执行该任务？结果请到执行日志页查看。')) return;
         const r = await postForm('/api/task/run', {id: id});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
     }
 
     async function toggleTask(id, enabled) {
         const r = await postForm('/api/task/toggle', {id: id, enabled: enabled});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 
     async function deleteTask(id, code) {
         if (!confirm('确认删除任务【' + code + '】？该任务的历史执行日志也会一并删除，此操作不可恢复。')) return;
         const r = await postForm('/api/task/delete', {id: id});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 </script>
 </body>

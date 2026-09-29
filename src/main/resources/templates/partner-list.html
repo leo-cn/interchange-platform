@@ -125,8 +125,8 @@
         let data = {};
         if (id) {
             const r = await getJson('/api/partner/detail/' + id);
-            if (r.code !== 0) {
-                toast(r.message, 'error');
+            if (r.resultCode !== '0') {
+                toast(r.resultMessage, 'error');
                 return;
             }
             data = r.data;
@@ -152,8 +152,8 @@
             remark: document.getElementById('p_remark').value
         };
         const r = await postJson('/api/partner/save', payload);
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) {
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') {
             closeModal();
             setTimeout(() => location.reload(), 700);
         }
@@ -161,15 +161,15 @@
 
     async function togglePartner(id, enabled) {
         const r = await postForm('/api/partner/toggle', {id: id, enabled: enabled});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 
     async function deletePartner(id, code) {
         if (!confirm('确认删除对接方【' + code + '】？')) return;
         const r = await postForm('/api/partner/delete', {id: id});
-        toast(r.message, r.code === 0 ? 'success' : 'error');
-        if (r.code === 0) setTimeout(() => location.reload(), 700);
+        toast(r.resultMessage, r.resultCode === '0' ? 'success' : 'error');
+        if (r.resultCode === '0') setTimeout(() => location.reload(), 700);
     }
 </script>
 </body>
