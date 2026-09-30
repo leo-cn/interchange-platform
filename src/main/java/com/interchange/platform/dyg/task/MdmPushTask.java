@@ -30,7 +30,12 @@ public class MdmPushTask implements Task {
         }
         Map<String, Object> res = JsonUtil.toMap(responseBody);
         if (res == null) {
-            return null;                     // 非约定 JSON，按 HTTP 状态码兜底
+            // 空响应体按 HTTP 状态码兜底；有内容却不是约定 JSON（多半是登录页/网关页）判失败，
+            // 否则"假成功"：一条主数据都没接收，任务日志却记成功
+            if (responseBody == null || responseBody.isBlank()) {
+                return null;
+            }
+            return ResultDTO.fail("接收方响应不是约定的 JSON（疑为登录页/网关页），原文见响应报文");
         }
         if (!MdmConstant.S.equals(String.valueOf(res.get("status")))) {
             return ResultDTO.fail("接收方返回 status=" + res.get("status")

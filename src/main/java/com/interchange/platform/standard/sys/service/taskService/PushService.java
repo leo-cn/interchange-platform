@@ -69,7 +69,10 @@ public class PushService {
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            // 不跟重定向：被 302 到登录页/网关页时，跟过去会拿到 200 + HTML，判成败会误判成功
+            // （而且重定向时 POST 报文会被丢掉，对端收到的是没报文的 GET）。
+            // 对端若依赖 3xx 跳转（如 http→https），请在第三方系统里直接写最终地址。
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
     /** 手工触发使用独立线程池，避免阻塞页面请求 */

@@ -89,7 +89,15 @@ public class CmsBondIssueTask implements Task {
         }
         Map<String, Object> res = JsonUtil.toMap(responseBody);
         if (res == null) {
-            return null;                          // 不是约定的 JSON，按 HTTP 状态码兜底
+            // 空响应体交回引擎按 HTTP 状态码兜底；有内容但不是约定 JSON（多半是登录页、网关页、
+            // SSO 跳转页）一律判失败，否则会"假成功"：审批单一条没进 OA，任务日志却记成功
+            if (StringUtil.isBlank(responseBody)) {
+                return null;
+            }
+            // ctx.attr 是泛型返回，只带一个参数时 warn 会在 (Object...) 与 (Throwable) 之间歧义，显式转 Object
+            log.warn("OA 响应不是约定的 JSON：srcBillCode={}",
+                    (Object) ctx.attr(OaConstant.ATTR_BILL_CODE));
+            return ResultDTO.fail("OA 响应不是约定的 JSON（疑为登录页/网关页），原文见响应报文");
         }
         String resultCode = StringUtil.str(res, "resultCode");
         String resultMsg = StringUtil.str(res, "resultMsg");
