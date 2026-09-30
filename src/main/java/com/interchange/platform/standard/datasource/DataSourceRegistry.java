@@ -6,14 +6,10 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.orm.jpa.EntityManagerHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
@@ -46,8 +42,6 @@ public class DataSourceRegistry {
     private DataSource primaryDataSource;
     @Resource
     private AppProps appProps;
-    @Resource
-    private SessionFactory sessionFactory;
 
     /** 已创建的数据源（含 main） */
     private final Map<String, JdbcTemplate> templates = new ConcurrentHashMap<>();

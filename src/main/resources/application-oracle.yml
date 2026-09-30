@@ -7,7 +7,8 @@
 #     CREATE USER t6 IDENTIFIED BY t6;
 #     GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO t6;
 #
-#  提示：Oracle 生产环境建议 ddl-auto=validate，先执行 db/schema-oracle.sql 建表。
+#  提示：Oracle 生产环境建议 ddl-auto=validate（属性名 spring.hibernate.ddl-auto），
+#       先执行 db/schema-oracle.sql 建表。
 #       Oracle 无 BOOLEAN 类型，Hibernate 会自动用 NUMBER(1) 存储布尔字段。
 # ==========================================================================
 spring:
@@ -21,8 +22,3 @@ spring:
       maximum-pool-size: 15
       minimum-idle: 3
       connection-test-query: SELECT 1 FROM DUAL
-  jpa:
-    properties:
-      hibernate:
-        jdbc:
-          time_zone: Asia/Shanghai

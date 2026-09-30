@@ -22,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import org.springframework.aop.support.AopProxyUtils;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -65,21 +67,24 @@ public class ReceiveDispatchService {
     @PostConstruct
     void initHandlers() {
         for (ReceiveService h : handlers) {
-            ReceiveApi info = h.getClass().getAnnotation(ReceiveApi.class);
+            // 处理器上有 @Transactional，容器注入的是 CGLIB 代理；注解不在代理子类上，
+            // 必须回到业务类读，否则带事务的处理器会被当成"没有 @ReceiveApi"整个跳过
+            Class<?> targetClass = AopProxyUtils.ultimateTargetClass(h);
+            ReceiveApi info = AnnotationUtils.findAnnotation(targetClass, ReceiveApi.class);
             if (info == null) {
-                log.warn("接收处理器 {} 缺少 @ReceiveApi 注解，已跳过",
-                        h.getClass().getSimpleName());
+                log.warn("接收处理器 {} 缺少 @ReceiveApi 注解，已跳过", targetClass.getSimpleName());
                 continue;
             }
             ReceiveService prev = receiveHandlers.putIfAbsent(info.code().toLowerCase(), h);
             if (prev != null) {
                 log.warn("接收处理器 apiCode={} 重复注册：{} 与 {}，保留 {}",
-                        info.code(), prev.getClass().getSimpleName(),
-                        h.getClass().getSimpleName(), prev.getClass().getSimpleName());
+                        info.code(), targetClass.getSimpleName(),
+                        AopProxyUtils.ultimateTargetClass(prev).getSimpleName(),
+                        AopProxyUtils.ultimateTargetClass(prev).getSimpleName());
                 continue;
             }
             log.info("接收处理器已注册: apiCode={}, handler={}",
-                    info.code(), h.getClass().getSimpleName());
+                    info.code(), targetClass.getSimpleName());
             // 首次启动登记进 receive_api；已存在则跳过，不覆盖用户在页面上的改名、停用
             receiveApiService.registerIfAbsent(info.code(), info.desc(), null, h.authRequired());
         }

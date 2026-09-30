@@ -33,7 +33,7 @@ spring:
     job-store-type: memory          # 调度状态保存在内存；任务定义以数据库为准，启动时自动重建
     auto-startup: true
     properties:
-      org.quartz.scheduler.instanceName: InterchangeScheduler
+      org.quartz.scheduler.instanceName: qrtz
       org.quartz.scheduler.instanceId: AUTO
       org.quartz.threadPool.threadCount: 10
       org.quartz.jobStore.misfireThreshold: 60000

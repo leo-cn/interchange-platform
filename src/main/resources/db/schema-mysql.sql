@@ -4,7 +4,8 @@
 --    1) CREATE DATABASE t6 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 --    2) mysql -uroot -p t6 < schema-mysql.sql
 --    3) 启动参数：--spring.profiles.active=mysql
---  说明：应用默认 ddl-auto=update 也会自动建表；脚本用于生产环境手工初始化/审阅。
+--  说明：应用不会自动建表（spring.hibernate.ddl-auto 默认 none），新库请先执行本脚本；
+--        只有把 JPA_DDL 显式设成 update 时才由 Hibernate 建表（别在有资金系统基表的库上这么干）。
 -- ============================================================================
 
 -- 平台侧用户扩展属性。

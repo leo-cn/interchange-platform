@@ -2,10 +2,13 @@ package com.interchange.platform.standard.core.base;
 
 import com.interchange.platform.standard.exception.BizException;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.Session;
-import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
+import org.springframework.orm.jpa.EntityManagerHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -15,22 +18,26 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Hibernate 通用数据访问层（写法参考 dyg-erp 的 DygBaseDao）。
- *
- * <p>对外只暴露 {@link Session} 与几个便捷方法：查询直接写 HQL / 原生 SQL，
- * 不用 Criteria API，也不生成 Spring Data 的代理接口。
- *
- * <p>约定：写操作必须在 {@code @Transactional} 方法内调用，否则不会落库。
+ * Hibernate 通用数据访问层
  */
 @Repository
+@Transactional
 public class BaseDao {
 
     @Resource
-    protected SessionFactory sessionFactory;
+    private EntityManagerFactory entityManagerFactory;
 
-    /** 当前会话：事务内是事务绑定的那个 Session，事务外新开一个 */
+    /**
+     * 当前事务的 Session。提交/回滚、关闭都由 Spring 管，调用方不要 flush / close。
+     */
     public Session session() {
-        return sessionFactory.getCurrentSession();
+        EntityManagerHolder holder = (EntityManagerHolder)
+                TransactionSynchronizationManager.getResource(entityManagerFactory);
+        Session session = holder == null ? null : holder.getEntityManager().unwrap(Session.class);
+        if (session == null) {
+            throw new BizException("当前线程没有绑定事务，DAO 只能在 @Transactional 方法内调用");
+        }
+        return session;
     }
 
     /* ===================== 单条 ===================== */
@@ -121,12 +128,16 @@ public class BaseDao {
         return bindNamed(session().createMutationQuery(hql), params).executeUpdate();
     }
 
-    /** 位置参数的 HQL 增删改，返回影响行数（需在事务内） */
+    /**
+     * 位置参数的 HQL 增删改，返回影响行数（需在事务内）。
+     *
+     * <p>占位符写 {@code ?1}/{@code ?2}，下标从 <b>1</b> 起（JPA 约定，见 {@link #bind}）。
+     */
     public int updateByHql(String hql, Object... args) {
         org.hibernate.query.MutationQuery query = session().createMutationQuery(hql);
         if (args != null) {
             for (int i = 0; i < args.length; i++) {
-                query.setParameter(i, args[i]);
+                query.setParameter(i + 1, args[i]);
             }
         }
         return query.executeUpdate();
@@ -190,8 +201,6 @@ public class BaseDao {
 
     /**
      * 按名字绑定参数。上界用 {@code QueryProducer} 的公共接口
-     * {@link org.hibernate.query.CommonQuery}，这样 HQL 的 {@code Query}、
-     * 原生 {@code NativeQuery}、以及增删改的 {@code MutationQuery} 都能传。
      */
     protected static <Q extends org.hibernate.query.CommonQueryContract> Q bindNamed(
             Q query, Map<String, ?> params) {
@@ -202,13 +211,19 @@ public class BaseDao {
     }
 
     /**
-     * 按位置绑定参数（Hibernate 6 的下标从 0 开始）。
-     * {@link org.hibernate.query.NativeQuery} 与 {@code MutationQuery} 都可传。
+     * 按位置绑定参数：第 1 个参数对应 {@code ?1}，下标从 <b>1</b> 起。
+     *
+     * <p>Hibernate 6 里 HQL 与原生 SQL 都是这个约定（原生 SQL 的裸 {@code ?} 也按出现顺序
+     * 编号 1..n，这是迁移指南里 "JDBC-style parameter declarations in native queries,
+     * we have also moved to using one-based instead of zero-based" 那条）。
+     * 所以 {@link #placeholders(int)} 生成的 {@code ?,?,?} 也直接配 1 起下标。
+     *
+     * <p>{@link org.hibernate.query.NativeQuery}、{@code MutationQuery}、HQL {@code Query} 都可传。
      */
     protected static <Q extends org.hibernate.query.CommonQueryContract> Q bind(Q query, Object... args) {
         if (args != null) {
             for (int i = 0; i < args.length; i++) {
-                query.setParameter(i, args[i]);
+                query.setParameter(i + 1, args[i]);
             }
         }
         return query;
@@ -227,7 +242,7 @@ public class BaseDao {
         return map;
     }
 
-    /** IN 子句占位符 */
+    /** IN 子句占位符 {@code ?,?,?}，配 {@link #bind} 的 1 起下标使用 */
     public static String placeholders(int n) {
         return String.join(",", java.util.Collections.nCopies(n, "?"));
     }

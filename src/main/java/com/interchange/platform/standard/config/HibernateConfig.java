@@ -1,6 +1,5 @@
 package com.interchange.platform.standard.config;
 
-import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,21 +14,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 持久化配置：只建 Hibernate 的 EntityManagerFactory / SessionFactory，不引入 Spring Data JPA。
+ * 持久化配置：只建 Hibernate 的 EntityManagerFactory，不引入 Spring Data JPA。
  *
- * <p>实体注解统一用 jakarta.persistence（{@code @Entity} / {@code @Id} / {@code @Column}），
- * 仓储层直接用 Hibernate 的 {@code Session}，各 DAO 自己写 HQL / 原生 SQL，
- * 不生成 Repository 代理，也不用 Criteria API 拼查询。
- *
- * <p>实体扫描范围：
- * <ul>
- *   <li>{@code com.interchange.platform.standard.sys.entity} —— 平台自身的元数据表；</li>
- *   <li>{@code com.interchange.platform.dyg.entity} —— 标准接口的只读视图，
- *       以及 MDM 接收要写入的资金系统基线表（{@code BtBankAcc} / {@code SysCorp} 等）。</li>
- * </ul>
- *
- * <p><b>重要</b>：{@code dyg.entity} 里有一部分映射的是 dyg-erp 的资金系统基线表，
- * {@code ddl-auto} 必须保持 {@code none}，否则 Hibernate 会去改别人的表结构。
+ * <p><b>不要再往这里加 SessionFactory bean</b>：JPA 的 EMF 里 unwrap 出来的 SessionFactory
+ * 同时实现了 {@code EntityManagerFactory}，多一个这样的 bean，按类型注入 EMF 的地方
+ * （包括 Spring Boot 的 open-in-view）就会报 "required a single bean, but 2 were found"。
+ * 需要 Session 走 {@code BaseDao.session()}，需要 withOptions/openSession 走
+ * {@code session().getSessionFactory()} 或自行 unwrap。
  */
 @Configuration
 @EnableTransactionManagement
@@ -61,18 +52,15 @@ public class HibernateConfig {
         return manager;
     }
 
-    /** 供 DAO 直接注入，省得层层 unwrap */
-    @Bean
-    public SessionFactory sessionFactory(LocalContainerEntityManagerFactoryBean entityManagerFactory) {
-        return entityManagerFactory.getObject().unwrap(SessionFactory.class);
-    }
-
     private Map<String, Object> hibernateProperties(String ddlAuto) {
         Map<String, Object> props = new HashMap<>();
         props.put("hibernate.hbm2ddl.auto", ddlAuto);
         props.put("hibernate.jdbc.batch_size", 50);
         props.put("hibernate.format_sql", true);
         props.put("hibernate.show_sql", false);
+        // 时区：四套 profile 原先都写在 spring.jpa.properties.hibernate.jdbc.time_zone，
+        // 自建 EMF 后 Spring Boot 的 JPA 自动配置不再生效，那条配置是死的，挪到这里。
+        props.put("hibernate.jdbc.time_zone", "Asia/Shanghai");
         // 方言由 Hibernate 依 DataSource 自动探测，换库不用改配置
         return props;
     }

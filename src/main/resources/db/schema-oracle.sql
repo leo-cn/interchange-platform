@@ -6,7 +6,7 @@
 --         GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO t6;
 --    2) 以 t6 用户执行本脚本；
 --    3) 启动参数：--spring.profiles.active=oracle
---    4) 生产环境建议 --spring.jpa.hibernate.ddl-auto=validate
+--    4) 生产环境建议 --spring.hibernate.ddl-auto=validate
 --
 --  类型映射说明：
 --    · 布尔字段（enabled）用 NUMBER(1)：1=启用 0=停用

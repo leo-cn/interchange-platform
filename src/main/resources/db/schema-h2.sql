@@ -1,6 +1,7 @@
 -- ============================================================================
 --  接口交换平台 · H2 建表脚本（默认数据库，一般无需手工执行）
---  应用启动时 ddl-auto=update 会自动建表；本脚本仅供审阅或手工初始化。
+--  应用不会自动建表（spring.hibernate.ddl-auto 默认 none）：首次用这套库时执行本脚本，
+--  或把 JPA_DDL 显式设成 update 让 Hibernate 建（只对平台自己的表，资金系统基表别让它动）。
 --  数据文件：./data/t6.mv.db
 --  控制台：http://127.0.0.1:18080/h2-console
 --          JDBC URL: jdbc:h2:file:./data/t6;AUTO_SERVER=TRUE

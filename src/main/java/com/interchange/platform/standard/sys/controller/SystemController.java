@@ -72,7 +72,7 @@ public class SystemController {
         data.put("driver", environment.getProperty("spring.datasource.driver-class-name"));
         // 方言不再由配置写死，这里回显 Hibernate 实际识别到的方言
         data.put("dialect", actualDialect());
-        data.put("ddlAuto", environment.getProperty("spring.jpa.hibernate.ddl-auto"));
+        data.put("ddlAuto", environment.getProperty("spring.hibernate.ddl-auto"));
         try (Connection conn = dataSource.getConnection()) {
             data.put("productName", conn.getMetaData().getDatabaseProductName());
             data.put("productVersion", conn.getMetaData().getDatabaseProductVersion());
@@ -108,7 +108,7 @@ public class SystemController {
         } catch (Exception e) {
             log.warn("读取 Hibernate 实际方言失败（二次尝试）：{}", e.toString());
         }
-        // 兜底：返回显式配置的方言（如果配置了的话）
-        return environment.getProperty("spring.jpa.properties.hibernate.dialect");
+        // 没有兜底配置项：方言由 Hibernate 依连接自动探测（HibernateConfig 不写 hibernate.dialect）
+        return null;
     }
 }

@@ -9,8 +9,3 @@ spring:
       maximum-pool-size: 15
       minimum-idle: 3
       connection-test-query: SELECT 1
-  jpa:
-    properties:
-      hibernate:
-        jdbc:
-          time_zone: Asia/Shanghai

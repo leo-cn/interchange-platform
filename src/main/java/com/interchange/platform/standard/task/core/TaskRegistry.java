@@ -5,7 +5,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aop.support.AopProxyUtils;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -34,10 +36,13 @@ public class TaskRegistry {
         Map<String, Task> beans = context.getBeansOfType(Task.class);
         beans.forEach((beanName, task) -> {
             byKey.put(norm(beanName), task);
-            TaskInfo info = task.getClass().getAnnotation(TaskInfo.class);
+            // 同 ReceiveDispatchService：任务若被 AOP 代理（带 @Transactional 等），
+            // 注解只在业务类上，代理子类读不到，必须回到业务类
+            Class<?> targetClass = AopProxyUtils.ultimateTargetClass(task);
+            TaskInfo info = AnnotationUtils.findAnnotation(targetClass, TaskInfo.class);
             if (info == null) {
                 log.warn("任务 {} 缺少 @TaskInfo 注解，只能用 Bean 名 {} 引用",
-                        task.getClass().getSimpleName(), beanName);
+                        targetClass.getSimpleName(), beanName);
                 return;
             }
             byKey.put(norm(info.code()), task);
