@@ -2,6 +2,7 @@ package com.interchange.platform.standard.init;
 
 import jakarta.annotation.Resource;
 import com.interchange.platform.standard.utils.Crypto;
+import com.interchange.platform.standard.utils.DateUtil;
 import com.interchange.platform.standard.utils.Utils;
 import com.interchange.platform.standard.sys.entity.InterfaceTask;
 import com.interchange.platform.standard.sys.entity.Partner;
@@ -205,7 +206,7 @@ public class DataInitializer implements ApplicationRunner {
             task.setPartnerId(partner.getId());
             task.setSourceType("FIXED");
             task.setFixedPayload("{\"type\":\"heartbeat\",\"source\":\"interchange-platform\","
-                    + "\"time\":\"" + Utils.format(LocalDateTime.now()) + "\"}");
+                    + "\"time\":\"" + DateUtil.formatDateTime(LocalDateTime.now()) + "\"}");
             task.setTargetPath("/ping");
             task.setHttpMethod("POST");
             task.setPushMode("BATCH");

@@ -109,6 +109,11 @@ public class DateUtil {
         return formatDate(date, FORMAT_DATETIME);
     }
 
+    /** yyyy-MM-dd HH:mm:ss（LocalDateTime 版，省得调用点自己 toTimestamp） */
+    public static String formatDateTime(LocalDateTime time) {
+        return time == null ? null : formatDate(toTimestamp(time));
+    }
+
     /** Date 转 yyyy-MM-dd 字符串（原工程 getDateYmdStr） */
     public static String getDateYmdStr(Date date) {
         return formatDate(date, FORMAT_DATE);

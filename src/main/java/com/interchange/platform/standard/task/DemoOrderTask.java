@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import com.interchange.platform.standard.task.core.TaskContext;
 import com.interchange.platform.standard.task.core.Task;
+import com.interchange.platform.standard.utils.DateUtil;
 import com.interchange.platform.standard.utils.JsonUtil;
 import com.interchange.platform.standard.anotation.TaskInfo;
 import com.interchange.platform.standard.utils.Utils;
@@ -49,11 +50,11 @@ public class DemoOrderTask implements Task {
         header.put("bizType", "ORDER");
         header.put("source", "interchange-platform");
         header.put("traceId", ctx.getTraceId());
-        header.put("sendTime", Utils.format(LocalDateTime.now()));
+        header.put("sendTime", DateUtil.formatDateTime(LocalDateTime.now()));
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("header", header);
         envelope.put("payload", convert(data));
-        return Utils.toJson(envelope);
+        return JsonUtil.ObjToJson(envelope);
     }
 
     /** ① 请求头：签名 + 时间戳，报文此时已确定，签的就是它 */
@@ -109,7 +110,7 @@ public class DemoOrderTask implements Task {
         if (httpStatus < 200 || httpStatus >= 300) {
             return ResultDTO.fail(null);
         }
-        Map<String, Object> resp = Utils.toMap(responseBody);
+        Map<String, Object> resp = JsonUtil.toMap(responseBody);
         if (resp == null || resp.get("code") == null) {
             return null;
         }

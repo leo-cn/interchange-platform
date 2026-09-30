@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
-import java.time.LocalDateTime;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -170,35 +170,4 @@ public final class Utils {
         return text.substring(0, max) + "\n...[报文超长，已截断，原始长度 " + text.length() + " 字符]";
     }
 
-    /* ===================== 兼容转发（新代码请直接用 JsonUtil / DateUtil / StringUtil） ===================== */
-
-    /** @deprecated 用 {@link JsonUtil#ObjToJson(Object)} */
-    @Deprecated
-    public static String toJson(Object obj) {
-        return JsonUtil.ObjToJson(obj);
-    }
-
-    /** @deprecated 用 {@link JsonUtil#toNode(String)} */
-    @Deprecated
-    public static Object jsonToNode(String text) {
-        return JsonUtil.toNode(text);
-    }
-
-    /** @deprecated 用 {@link JsonUtil#toMap(String)} */
-    @Deprecated
-    public static java.util.Map<String, Object> toMap(String text) {
-        return JsonUtil.toMap(text);
-    }
-
-    /** @deprecated 用 {@link JsonUtil#pretty(String)} */
-    @Deprecated
-    public static String prettyJson(String text) {
-        return JsonUtil.pretty(text);
-    }
-
-    /** @deprecated 用 {@link DateUtil#formatDate(java.util.Date)} */
-    @Deprecated
-    public static String format(LocalDateTime time) {
-        return DateUtil.formatDate(DateUtil.toTimestamp(time));
-    }
 }

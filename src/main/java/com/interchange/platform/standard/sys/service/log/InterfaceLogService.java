@@ -1,6 +1,7 @@
 package com.interchange.platform.standard.sys.service.log;
 
 import com.interchange.platform.standard.exception.BizException;
+import com.interchange.platform.standard.utils.DateUtil;
 import com.interchange.platform.standard.utils.Utils;
 import com.interchange.platform.standard.config.AppProps;
 import com.interchange.platform.standard.utils.JsonUtil;
@@ -106,7 +107,7 @@ public class InterfaceLogService {
      * 否则原样返回字符串（例如 XML、纯文本报文）。
      */
     private Object jsonOrText(String text) {
-        return Utils.jsonToNode(text);
+        return JsonUtil.toNode(text);
     }
 
     /**
@@ -147,7 +148,7 @@ public class InterfaceLogService {
             return;
         }
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("time", Utils.format(LocalDateTime.now()));
+        m.put("time", DateUtil.formatDateTime(LocalDateTime.now()));
         m.put("direction", direction);
         m.put("iface", iface);
         if (ifaceName != null && !ifaceName.isBlank()) {
@@ -188,7 +189,7 @@ public class InterfaceLogService {
     private String stageText(String direction, String iface, String traceId,
                              String stage, String message, Map<String, Object> extra) {
         StringBuilder main = new StringBuilder(256);
-        main.append(Utils.format(LocalDateTime.now()))
+        main.append(DateUtil.formatDateTime(LocalDateTime.now()))
                 .append(" | ").append(nvl(direction))
                 .append(" | ").append(nvl(iface))
                 .append(" | ").append(nvl(stage))
@@ -360,7 +361,7 @@ public class InterfaceLogService {
                 m.put("archived", archived);
                 m.put("size", size);
                 m.put("sizeText", humanSize(size));
-                m.put("lastModified", Utils.format(LocalDateTime.ofInstant(
+                m.put("lastModified", DateUtil.formatDateTime(LocalDateTime.ofInstant(
                         Instant.ofEpochMilli(mtime(p)), ZoneId.systemDefault())));
                 list.add(m);
             }
@@ -530,9 +531,9 @@ public class InterfaceLogService {
         for (String l : hit) {
             String t = l.trim();
             if (t.startsWith("请求报文：")) {
-                requests.add(Utils.prettyJson(t.substring(5).trim()));
+                requests.add(JsonUtil.pretty(t.substring(5).trim()));
             } else if (t.startsWith("响应报文：")) {
-                responses.add(Utils.prettyJson(t.substring(5).trim()));
+                responses.add(JsonUtil.pretty(t.substring(5).trim()));
             }
         }
         m.put("lineCount", hit.size());

@@ -2,6 +2,8 @@ package com.interchange.platform.standard.sys.controller.api;
 
 import com.interchange.platform.standard.sys.vo.ResultDTO;
 
+import com.interchange.platform.standard.utils.DateUtil;
+import com.interchange.platform.standard.utils.JsonUtil;
 import com.interchange.platform.standard.utils.TraceId;
 import com.interchange.platform.standard.utils.Utils;
 import com.interchange.platform.standard.sys.service.receiveService.ReceiveDispatchService;
@@ -58,7 +60,7 @@ public class ReceiveApiController {
             String name = names.nextElement();
             map.put(name, request.getHeader(name));
         }
-        return Utils.toJson(map);
+        return JsonUtil.ObjToJson(map);
     }
 
     private String clientIp(HttpServletRequest request) {
@@ -77,7 +79,7 @@ public class ReceiveApiController {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("status", "UP");
         data.put("application", "interchange-platform");
-        data.put("time", Utils.format(java.time.LocalDateTime.now()));
+        data.put("time", DateUtil.formatDateTime(java.time.LocalDateTime.now()));
         ResultDTO<Map<String, Object>> r = ResultDTO.ok(data);
         r.setTraceId(TraceId.current());
         return r;

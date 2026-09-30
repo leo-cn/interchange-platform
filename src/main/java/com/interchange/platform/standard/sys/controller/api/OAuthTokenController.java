@@ -1,6 +1,7 @@
 package com.interchange.platform.standard.sys.controller.api;
 
 import com.interchange.platform.standard.sys.vo.ResultDTO;
+import com.interchange.platform.standard.utils.DateUtil;
 import com.interchange.platform.standard.utils.StringUtil;
 import jakarta.annotation.Resource;
 
@@ -52,7 +53,7 @@ public class OAuthTokenController {
         data.put("access_token", issue.getAccessToken());
         data.put("token_type", "Bearer");
         data.put("expires_in", issue.getExpiresIn());
-        data.put("expire_at", Utils.format(issue.getExpireAt()));
+        data.put("expire_at", DateUtil.formatDateTime(issue.getExpireAt()));
         return ResultDTO.ok("签发成功", data);
     }
 

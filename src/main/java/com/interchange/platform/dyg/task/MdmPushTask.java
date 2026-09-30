@@ -5,6 +5,7 @@ import com.interchange.platform.standard.sys.vo.ResultDTO;
 import com.interchange.platform.standard.task.core.TaskContext;
 import com.interchange.platform.standard.task.core.Task;
 import com.interchange.platform.standard.anotation.TaskInfo;
+import com.interchange.platform.standard.utils.JsonUtil;
 import com.interchange.platform.standard.utils.Utils;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +19,7 @@ public class MdmPushTask implements Task {
     /** dyg-erp 收裸 JSON 数组，不用默认信封 */
     @Override
     public String setBody(TaskContext ctx, Object data) {
-        return Utils.toJson(data == null ? List.of() : data);
+        return JsonUtil.ObjToJson(data == null ? List.of() : data);
     }
 
     /** MDM 回执外层恒为 S，真正的成败看 responseData 里每条的 status */
@@ -27,7 +28,7 @@ public class MdmPushTask implements Task {
         if (httpStatus < 200 || httpStatus >= 300) {
             return ResultDTO.fail(null);     // 交回引擎，用 "HTTP xxx: 响应摘要"
         }
-        Map<String, Object> res = Utils.toMap(responseBody);
+        Map<String, Object> res = JsonUtil.toMap(responseBody);
         if (res == null) {
             return null;                     // 非约定 JSON，按 HTTP 状态码兜底
         }

@@ -2,6 +2,7 @@ package com.interchange.platform.standard.sys.service;
 
 import com.interchange.platform.standard.exception.BizException;
 import com.interchange.platform.standard.utils.Crypto;
+import com.interchange.platform.standard.utils.DateUtil;
 import com.interchange.platform.standard.utils.Utils;
 import com.interchange.platform.standard.sys.entity.Partner;
 import com.interchange.platform.standard.sys.dao.InterfaceTaskDao;
@@ -110,6 +111,6 @@ public class PartnerService {
 
     /** 修改时间展示 */
     public String formatTime(java.time.LocalDateTime time) {
-        return Utils.format(time);
+        return DateUtil.formatDateTime(time);
     }
 }

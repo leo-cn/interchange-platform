@@ -10,6 +10,8 @@ import com.interchange.platform.standard.task.core.TaskContext;
 import com.interchange.platform.standard.task.core.Task;
 import com.interchange.platform.standard.task.core.TaskRegistry;
 import com.interchange.platform.standard.utils.Crypto;
+import com.interchange.platform.standard.utils.DateUtil;
+import com.interchange.platform.standard.utils.JsonUtil;
 import com.interchange.platform.standard.utils.TraceId;
 import com.interchange.platform.standard.utils.Utils;
 import com.interchange.platform.standard.config.AppProps;
@@ -283,7 +285,7 @@ public class PushService {
         for (Map<String, Object> row : rows) {
             int index = success + fail + 1;
             String body = buildRowBody(ctx, handler, row);
-            requestItems.add(Utils.jsonToNode(body));
+            requestItems.add(JsonUtil.toNode(body));
 
             // 过程日志 3/5（逐条）：开始推送第 i 条
             log.info("任务[{}] 开始推送第 {}/{} 条数据", task.getTaskCode(), index, rows.size());
@@ -297,7 +299,7 @@ public class PushService {
             long sendStart = System.currentTimeMillis();
             PushOutcome outcome = callOnce(ctx, handler, body, taskLog);
             long sendCost = System.currentTimeMillis() - sendStart;
-            responseItems.add(Utils.jsonToNode(outcome.responseBody));
+            responseItems.add(JsonUtil.toNode(outcome.responseBody));
 
             // 过程日志 4/5（逐条）：第 i 条结果
             Map<String, Object> endExtra = new LinkedHashMap<>();
@@ -327,8 +329,8 @@ public class PushService {
         taskLog.setTotalCount(rows.size());
         taskLog.setSuccessCount(success);
         taskLog.setFailCount(fail);
-        taskLog.setRequestBody(Utils.truncate(Utils.toJson(requestItems), appProps.getPush().getLogBodyLimit()));
-        taskLog.setResponseBody(Utils.truncate(Utils.toJson(responseItems), appProps.getPush().getLogBodyLimit()));
+        taskLog.setRequestBody(Utils.truncate(JsonUtil.ObjToJson(requestItems), appProps.getPush().getLogBodyLimit()));
+        taskLog.setResponseBody(Utils.truncate(JsonUtil.ObjToJson(responseItems), appProps.getPush().getLogBodyLimit()));
         if (fail == 0) {
             taskLog.setStatus("SUCCESS");
         } else if (success == 0) {
@@ -466,10 +468,10 @@ public class PushService {
         envelope.put("taskCode", task.getTaskCode());
         envelope.put("taskName", task.getTaskName());
         envelope.put("traceId", TraceId.current());
-        envelope.put("sendTime", Utils.format(LocalDateTime.now()));
+        envelope.put("sendTime", DateUtil.formatDateTime(LocalDateTime.now()));
         envelope.put("total", fetched.getTotal());
         envelope.put("data", fetched.getData());
-        return Utils.toJson(envelope);
+        return JsonUtil.ObjToJson(envelope);
     }
 
     /** 组装单条报文体；处理器 setBody 返回非 null 时以处理器为准 */
@@ -484,9 +486,9 @@ public class PushService {
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("taskCode", task.getTaskCode());
         envelope.put("traceId", TraceId.current());
-        envelope.put("sendTime", Utils.format(LocalDateTime.now()));
+        envelope.put("sendTime", DateUtil.formatDateTime(LocalDateTime.now()));
         envelope.put("data", row);
-        return Utils.toJson(envelope);
+        return JsonUtil.ObjToJson(envelope);
     }
 
     /** 从请求头 Map 中取出并移除同名头（忽略大小写） */

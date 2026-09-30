@@ -2,6 +2,7 @@ package com.interchange.platform.standard.sys.controller;
 
 import com.interchange.platform.standard.sys.vo.ResultDTO;
 
+import com.interchange.platform.standard.utils.DateUtil;
 import com.interchange.platform.standard.utils.Utils;
 import com.interchange.platform.standard.datasource.DataSourceRegistry;
 import jakarta.annotation.Resource;
@@ -59,7 +60,7 @@ public class SystemController {
         if (dbError != null) {
             data.put("databaseError", dbError);
         }
-        data.put("time", Utils.format(LocalDateTime.now()));
+        data.put("time", DateUtil.formatDateTime(LocalDateTime.now()));
         return ResultDTO.ok(data);
     }
 

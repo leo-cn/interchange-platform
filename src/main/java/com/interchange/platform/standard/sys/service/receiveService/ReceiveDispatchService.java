@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import org.springframework.aop.support.AopProxyUtils;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Service;
 
@@ -146,7 +146,7 @@ public class ReceiveDispatchService {
             ResultDTO<Map<String, Object>> response = ResultDTO.ok("接收成功", data);
             response.setTraceId(traceId);
             entity.setStatus("SUCCESS");
-            entity.setResponseBody(Utils.truncate(Utils.toJson(response), 200000));
+            entity.setResponseBody(Utils.truncate(JsonUtil.ObjToJson(response), 200000));
             interfaceLogService.write("RECEIVE", apiCode, null, traceId, "RESPONDED",
                     "处理完成并已响应（耗时 " + (System.currentTimeMillis() - start) + "ms）", null);
             return response;
@@ -156,7 +156,7 @@ public class ReceiveDispatchService {
             response.setTraceId(traceId);
             entity.setStatus("FAIL");
             entity.setErrorMsg(e.getMessage());
-            entity.setResponseBody(Utils.toJson(response));
+            entity.setResponseBody(JsonUtil.ObjToJson(response));
             log.warn("接收请求失败 apiCode={}, caller={}, 原因={}", apiCode, entity.getCaller(), e.getMessage());
             return response;
         } catch (Exception e) {
@@ -164,7 +164,7 @@ public class ReceiveDispatchService {
             response.setTraceId(traceId);
             entity.setStatus("FAIL");
             entity.setErrorMsg(e.getMessage());
-            entity.setResponseBody(Utils.toJson(response));
+            entity.setResponseBody(JsonUtil.ObjToJson(response));
             log.error("接收请求异常 apiCode={}", apiCode, e);
             return response;
         } finally {

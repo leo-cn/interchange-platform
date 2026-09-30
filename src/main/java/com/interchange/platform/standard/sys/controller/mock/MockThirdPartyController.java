@@ -2,6 +2,7 @@ package com.interchange.platform.standard.sys.controller.mock;
 
 import com.interchange.platform.standard.sys.vo.ResultDTO;
 
+import com.interchange.platform.standard.utils.DateUtil;
 import com.interchange.platform.standard.utils.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public class MockThirdPartyController {
         data.put("received", true);
         data.put("bodyLength", length);
         data.put("traceId", traceId);
-        data.put("receiveTime", Utils.format(LocalDateTime.now()));
+        data.put("receiveTime", DateUtil.formatDateTime(LocalDateTime.now()));
         data.put("message", "模拟第三方已成功接收数据");
         return ResultDTO.ok(data);
     }
@@ -50,7 +51,7 @@ public class MockThirdPartyController {
     public ResultDTO<Map<String, Object>> ping(HttpServletRequest request) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("pong", true);
-        data.put("serverTime", Utils.format(LocalDateTime.now()));
+        data.put("serverTime", DateUtil.formatDateTime(LocalDateTime.now()));
         data.put("clientToken", request.getHeader("X-Partner-Token") == null ? "" : "已携带");
         return ResultDTO.ok(data);
     }

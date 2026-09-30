@@ -2,6 +2,7 @@ package com.interchange.platform.standard.sys.controller.api;
 
 import com.interchange.platform.standard.sys.vo.ResultDTO;
 import com.interchange.platform.standard.utils.DateUtil;
+import com.interchange.platform.standard.utils.JsonUtil;
 import jakarta.annotation.Resource;
 
 import com.interchange.platform.standard.exception.BizException;
@@ -51,15 +52,15 @@ public class LogApiController {
         data.put("traceId", l.getTraceId());
         data.put("triggerType", l.getTriggerType());
         data.put("status", l.getStatus());
-        data.put("startTime", Utils.format(l.getStartTime()));
-        data.put("endTime", Utils.format(l.getEndTime()));
+        data.put("startTime", DateUtil.formatDateTime(l.getStartTime()));
+        data.put("endTime", DateUtil.formatDateTime(l.getEndTime()));
         data.put("costMs", l.getCostMs());
         data.put("totalCount", l.getTotalCount());
         data.put("successCount", l.getSuccessCount());
         data.put("failCount", l.getFailCount());
         data.put("targetUrl", l.getTargetUrl());
-        data.put("requestBody", Utils.prettyJson(l.getRequestBody()));
-        data.put("responseBody", Utils.prettyJson(l.getResponseBody()));
+        data.put("requestBody", JsonUtil.pretty(l.getRequestBody()));
+        data.put("responseBody", JsonUtil.pretty(l.getResponseBody()));
         data.put("errorMsg", l.getErrorMsg());
         return ResultDTO.ok(data);
     }
@@ -106,11 +107,11 @@ public class LogApiController {
         data.put("remoteIp", l.getRemoteIp());
         data.put("caller", l.getCaller());
         data.put("status", l.getStatus());
-        data.put("receiveTime", Utils.format(l.getReceiveTime()));
+        data.put("receiveTime", DateUtil.formatDateTime(l.getReceiveTime()));
         data.put("costMs", l.getCostMs());
-        data.put("headers", Utils.prettyJson(l.getHeaders()));
-        data.put("requestBody", Utils.prettyJson(l.getRequestBody()));
-        data.put("responseBody", Utils.prettyJson(l.getResponseBody()));
+        data.put("headers", JsonUtil.pretty(l.getHeaders()));
+        data.put("requestBody", JsonUtil.pretty(l.getRequestBody()));
+        data.put("responseBody", JsonUtil.pretty(l.getResponseBody()));
         data.put("errorMsg", l.getErrorMsg());
         return ResultDTO.ok(data);
     }

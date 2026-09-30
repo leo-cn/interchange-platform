@@ -1,6 +1,7 @@
 package com.interchange.platform.standard.sys.service.log;
 
 import com.interchange.platform.standard.exception.BizException;
+import com.interchange.platform.standard.utils.DateUtil;
 import com.interchange.platform.standard.utils.Utils;
 import com.interchange.platform.standard.sys.entity.ReceiveLog;
 import com.interchange.platform.standard.sys.entity.TaskLog;
@@ -82,8 +83,8 @@ public class LogService {
         sb.append("第三方系统: ").append(safe(l.getPartnerName())).append("\n");
         sb.append("traceId: ").append(safe(l.getTraceId())).append("\n");
         sb.append("触发方式: ").append(safe(l.getTriggerType())).append("\n");
-        sb.append("开始时间: ").append(Utils.format(l.getStartTime())).append("\n");
-        sb.append("结束时间: ").append(Utils.format(l.getEndTime())).append("\n");
+        sb.append("开始时间: ").append(DateUtil.formatDateTime(l.getStartTime())).append("\n");
+        sb.append("结束时间: ").append(DateUtil.formatDateTime(l.getEndTime())).append("\n");
         sb.append("耗时(ms): ").append(l.getCostMs()).append("\n");
         sb.append("执行结果: ").append(safe(l.getStatus())).append("\n");
         sb.append("数据条数: ").append(l.getTotalCount())
@@ -108,8 +109,8 @@ public class LogService {
                 "日志ID,任务编码,任务名称,第三方系统,traceId,触发方式,开始时间,结束时间,耗时(ms),状态,数据条数,成功,失败,目标地址,错误信息",
                 l -> new String[]{
                         str(l.getId()), safe(l.getTaskCode()), safe(l.getTaskName()), safe(l.getPartnerName()),
-                        safe(l.getTraceId()), safe(l.getTriggerType()), Utils.format(l.getStartTime()),
-                        Utils.format(l.getEndTime()), str(l.getCostMs()), safe(l.getStatus()),
+                        safe(l.getTraceId()), safe(l.getTriggerType()), DateUtil.formatDateTime(l.getStartTime()),
+                        DateUtil.formatDateTime(l.getEndTime()), str(l.getCostMs()), safe(l.getStatus()),
                         str(l.getTotalCount()), str(l.getSuccessCount()), str(l.getFailCount()),
                         safe(l.getTargetUrl()), safe(l.getErrorMsg())
                 },
@@ -128,7 +129,7 @@ public class LogService {
             sb.append("日志ID,接口编码,traceId,请求方式,来源IP,调用方,接收时间,耗时(ms),状态,错误信息\n");
             for (ReceiveLog l : logs) {
                 sb.append(csv(str(l.getId()), safe(l.getApiCode()), safe(l.getTraceId()), safe(l.getHttpMethod()),
-                        safe(l.getRemoteIp()), safe(l.getCaller()), Utils.format(l.getReceiveTime()),
+                        safe(l.getRemoteIp()), safe(l.getCaller()), DateUtil.formatDateTime(l.getReceiveTime()),
                         str(l.getCostMs()), safe(l.getStatus()), safe(l.getErrorMsg()))).append("\n");
             }
             return sb.toString().getBytes(StandardCharsets.UTF_8);
@@ -142,7 +143,7 @@ public class LogService {
             sb.append("请求方式: ").append(safe(l.getHttpMethod())).append("\n");
             sb.append("来源IP: ").append(safe(l.getRemoteIp())).append("\n");
             sb.append("调用方: ").append(safe(l.getCaller())).append("\n");
-            sb.append("接收时间: ").append(Utils.format(l.getReceiveTime())).append("\n");
+            sb.append("接收时间: ").append(DateUtil.formatDateTime(l.getReceiveTime())).append("\n");
             sb.append("耗时(ms): ").append(l.getCostMs()).append("\n");
             sb.append("处理结果: ").append(safe(l.getStatus())).append("\n");
             sb.append("----------------- 请求头 -----------------\n").append(safe(l.getHeaders())).append("\n");
